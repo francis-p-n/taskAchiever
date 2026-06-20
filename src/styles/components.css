@@ -1,0 +1,741 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SideQuest Achiever — Component Styles
+   Quest cards, detail panel, KPI charts, suggestions grid
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Quest List ─────────────────────────────────────────────────────────── */
+.quest-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+/* ─── Empty State ────────────────────────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2xl) * 2;
+  text-align: center;
+  min-height: 400px;
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: var(--space-lg);
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.empty-state h2 {
+  font-size: var(--font-lg);
+  color: var(--text-primary);
+  margin-bottom: var(--space-sm);
+}
+
+.empty-state p {
+  color: var(--text-muted);
+  margin-bottom: var(--space-lg);
+}
+
+/* ─── Quest Card (Todoist Row Style) ─────────────────────────────────────── */
+.quest-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: 10px 0;
+  background: transparent;
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: background var(--duration-fast);
+  position: relative;
+}
+
+.quest-card:last-child {
+  border-bottom: none;
+}
+
+.quest-card:hover {
+  background: transparent;
+}
+
+.quest-card.active {
+  background: var(--bg-glass-active);
+  border-radius: var(--radius-sm);
+  padding-left: var(--space-sm);
+  padding-right: var(--space-sm);
+  margin-left: calc(var(--space-sm) * -1);
+  margin-right: calc(var(--space-sm) * -1);
+  border-bottom-color: transparent;
+}
+
+/* Quest checkbox */
+.quest-checkbox {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--text-muted);
+  flex-shrink: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--duration-fast);
+  margin-top: 2px;
+  background: transparent;
+}
+
+.quest-checkbox:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.quest-card[data-category="adventure"] .quest-checkbox { border-color: var(--adventure); }
+.quest-card[data-category="creative"] .quest-checkbox { border-color: var(--creative); }
+.quest-card[data-category="scholarly"] .quest-checkbox { border-color: var(--scholarly); }
+.quest-card[data-category="achievement"] .quest-checkbox { border-color: var(--achievement); }
+
+.quest-card[data-category="adventure"] .quest-checkbox:hover { background: var(--adventure-bg); }
+.quest-card[data-category="creative"] .quest-checkbox:hover { background: var(--creative-bg); }
+.quest-card[data-category="scholarly"] .quest-checkbox:hover { background: var(--scholarly-bg); }
+.quest-card[data-category="achievement"] .quest-checkbox:hover { background: var(--achievement-bg); }
+
+.quest-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.quest-card-title {
+  font-size: var(--font-base);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.quest-card-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.quest-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.quest-badge-adventure { background: var(--adventure-bg); color: var(--adventure); }
+.quest-badge-creative { background: var(--creative-bg); color: var(--creative); }
+.quest-badge-scholarly { background: var(--scholarly-bg); color: var(--scholarly); }
+.quest-badge-achievement { background: var(--achievement-bg); color: var(--achievement); }
+
+.quest-tag {
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+}
+
+.quest-difficulty {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  font-size: 10px;
+}
+
+.quest-difficulty .filled {
+  opacity: 1;
+}
+
+.quest-difficulty .empty {
+  opacity: 0.2;
+}
+
+.quest-progress-mini {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.quest-progress-bar-mini {
+  width: 60px;
+  height: 4px;
+  background: var(--bg-glass);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.quest-progress-fill-mini {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width var(--duration-normal) var(--ease-out);
+}
+
+.quest-card[data-category="adventure"] .quest-progress-fill-mini { background: var(--adventure); }
+.quest-card[data-category="creative"] .quest-progress-fill-mini { background: var(--creative); }
+.quest-card[data-category="scholarly"] .quest-progress-fill-mini { background: var(--scholarly); }
+.quest-card[data-category="achievement"] .quest-progress-fill-mini { background: var(--achievement); }
+
+.quest-due {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.quest-due.overdue {
+  color: var(--danger);
+}
+
+/* ─── Detail Panel ───────────────────────────────────────────────────────── */
+.detail-panel {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--detail-width);
+  background: var(--bg-primary);
+  border-left: 1px solid var(--border-subtle);
+  transform: translateX(100%);
+  transition: transform var(--duration-normal) var(--ease-out);
+  z-index: 500;
+  overflow: hidden;
+}
+
+.detail-panel.open {
+  transform: translateX(0);
+  box-shadow: -1px 0 10px rgba(0, 0, 0, 0.2);
+}
+
+.detail-panel-inner {
+  height: 100%;
+  overflow-y: auto;
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.detail-title {
+  font-size: var(--font-md);
+  font-weight: 700;
+  flex: 1;
+  line-height: 1.3;
+}
+
+.detail-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.detail-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detail-field label {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+/* ─── Roadmap ────────────────────────────────────────────────────────────── */
+.detail-roadmap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.roadmap-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.roadmap-header h3 {
+  font-size: var(--font-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.roadmap-progress {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.roadmap-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: var(--bg-glass);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.roadmap-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-light));
+  border-radius: var(--radius-full);
+  transition: width var(--duration-normal) var(--ease-out);
+}
+
+.roadmap-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.roadmap-step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border-radius: var(--radius-sm);
+  transition: background var(--duration-fast);
+  cursor: grab;
+}
+
+.roadmap-step:hover {
+  background: var(--bg-glass-hover);
+}
+
+.roadmap-step.dragging {
+  opacity: 0.5;
+  background: var(--bg-glass-active);
+}
+
+.step-check {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 2px solid var(--border-medium);
+  flex-shrink: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--duration-fast);
+  font-size: 10px;
+}
+
+.step-check:hover {
+  border-color: var(--accent);
+}
+
+.step-check.checked {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.step-text {
+  flex: 1;
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+}
+
+.step-check.checked + .step-text {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.step-delete {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--duration-fast);
+  font-size: 16px;
+  padding: 2px;
+}
+
+.roadmap-step:hover .step-delete {
+  opacity: 1;
+}
+
+.step-delete:hover {
+  color: var(--danger);
+}
+
+.roadmap-add {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.roadmap-add .text-input {
+  flex: 1;
+}
+
+/* ─── Detail Actions ─────────────────────────────────────────────────────── */
+.detail-actions {
+  display: flex;
+  gap: var(--space-sm);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.detail-actions .btn {
+  flex: 1;
+  justify-content: center;
+}
+
+/* ─── KPI Grid ───────────────────────────────────────────────────────────── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-md);
+  margin-bottom: var(--space-xl);
+}
+
+.kpi-card {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  transition: all var(--duration-normal) var(--ease-out);
+}
+
+.kpi-card:hover {
+  border-color: var(--border-medium);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.kpi-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.kpi-icon {
+  font-size: 18px;
+}
+
+.kpi-label {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.kpi-value {
+  font-size: var(--font-2xl);
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.kpi-sub {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+/* ─── KPI Sections ───────────────────────────────────────────────────────── */
+.kpi-section {
+  margin-bottom: var(--space-xl);
+}
+
+.section-title {
+  font-size: var(--font-md);
+  font-weight: 700;
+  margin-bottom: var(--space-md);
+}
+
+.kpi-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-xl);
+}
+
+/* ─── Category Rings ─────────────────────────────────────────────────────── */
+.category-rings {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-lg);
+}
+
+.ring-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  background: var(--bg-glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.ring-svg {
+  width: 100px;
+  height: 100px;
+  transform: rotate(-90deg);
+}
+
+.ring-bg {
+  fill: none;
+  stroke: var(--bg-glass);
+  stroke-width: 8;
+}
+
+.ring-fill {
+  fill: none;
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s var(--ease-out);
+}
+
+.ring-label {
+  font-size: var(--font-sm);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ring-value {
+  font-size: var(--font-lg);
+  font-weight: 800;
+}
+
+/* ─── KPI Lists ──────────────────────────────────────────────────────────── */
+.kpi-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.kpi-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: var(--bg-glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.kpi-list-item .rank {
+  font-size: var(--font-lg);
+  font-weight: 800;
+  color: var(--text-muted);
+  min-width: 28px;
+}
+
+.kpi-list-item .info {
+  flex: 1;
+}
+
+.kpi-list-item .info .name {
+  font-weight: 600;
+  font-size: var(--font-sm);
+}
+
+.kpi-list-item .info .sub {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.kpi-list-item .score {
+  font-weight: 700;
+  color: var(--warning);
+}
+
+.kpi-empty {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  font-style: italic;
+  padding: var(--space-lg);
+  text-align: center;
+}
+
+/* ─── Heatmap ────────────────────────────────────────────────────────────── */
+.heatmap-container {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  overflow-x: auto;
+}
+
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(53, 1fr);
+  grid-template-rows: repeat(7, 1fr);
+  gap: 3px;
+  grid-auto-flow: column;
+}
+
+.heatmap-cell {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--bg-glass);
+  transition: all var(--duration-fast);
+}
+
+.heatmap-cell:hover {
+  transform: scale(1.3);
+  outline: 1px solid var(--text-muted);
+}
+
+.heatmap-cell[data-level="1"] { background: rgba(124, 58, 237, 0.2); }
+.heatmap-cell[data-level="2"] { background: rgba(124, 58, 237, 0.4); }
+.heatmap-cell[data-level="3"] { background: rgba(124, 58, 237, 0.6); }
+.heatmap-cell[data-level="4"] { background: rgba(124, 58, 237, 0.85); }
+
+.heatmap-months {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-sm) 0 0 0;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+/* ─── Suggestions Grid ───────────────────────────────────────────────────── */
+.suggestions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-md);
+}
+
+.suggestion-card {
+  padding: var(--space-lg);
+  background: var(--bg-glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  transition: all var(--duration-normal) var(--ease-out);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.suggestion-card:hover {
+  border-color: var(--border-medium);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+.suggestion-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+}
+
+.suggestion-icon {
+  font-size: 28px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.suggestion-card[data-category="adventure"] .suggestion-icon { background: var(--adventure-bg); }
+.suggestion-card[data-category="creative"] .suggestion-icon { background: var(--creative-bg); }
+.suggestion-card[data-category="scholarly"] .suggestion-icon { background: var(--scholarly-bg); }
+.suggestion-card[data-category="achievement"] .suggestion-icon { background: var(--achievement-bg); }
+
+.suggestion-title {
+  font-weight: 700;
+  font-size: var(--font-base);
+}
+
+.suggestion-reason {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.suggestion-desc {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.suggestion-actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: auto;
+}
+
+.suggestion-actions .btn {
+  flex: 1;
+  justify-content: center;
+}
+
+/* ─── Animations ─────────────────────────────────────────────────────────── */
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.quest-card {
+  animation: slideInUp var(--duration-normal) var(--ease-out) both;
+}
+
+.quest-card:nth-child(1) { animation-delay: 0ms; }
+.quest-card:nth-child(2) { animation-delay: 40ms; }
+.quest-card:nth-child(3) { animation-delay: 80ms; }
+.quest-card:nth-child(4) { animation-delay: 120ms; }
+.quest-card:nth-child(5) { animation-delay: 160ms; }
+.quest-card:nth-child(6) { animation-delay: 200ms; }
+.quest-card:nth-child(7) { animation-delay: 240ms; }
+.quest-card:nth-child(8) { animation-delay: 280ms; }
+.quest-card:nth-child(9) { animation-delay: 320ms; }
+.quest-card:nth-child(10) { animation-delay: 360ms; }
+
+.suggestion-card {
+  animation: slideInUp var(--duration-normal) var(--ease-out) both;
+}
+
+.suggestion-card:nth-child(1) { animation-delay: 0ms; }
+.suggestion-card:nth-child(2) { animation-delay: 60ms; }
+.suggestion-card:nth-child(3) { animation-delay: 120ms; }
+.suggestion-card:nth-child(4) { animation-delay: 180ms; }
+.suggestion-card:nth-child(5) { animation-delay: 240ms; }
+.suggestion-card:nth-child(6) { animation-delay: 300ms; }
+
+/* ─── Scrollbar for detail panel ─────────────────────────────────────────── */
+.detail-panel-inner::-webkit-scrollbar {
+  width: 4px;
+}
+
+.detail-panel-inner::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-full);
+}

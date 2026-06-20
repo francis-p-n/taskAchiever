@@ -1,0 +1,42 @@
+{
+  "name": "sidequest-achiever",
+  "version": "1.0.0",
+  "description": "A premium sidequest todo list with Todoist integration",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "package": "electron-builder --win",
+    "build": "electron-builder --win --publish never"
+  },
+  "author": "SideQuest Achiever",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "dependencies": {
+    "electron-store": "^8.2.0"
+  },
+  "build": {
+    "appId": "com.sidequest.achiever",
+    "productName": "SideQuest Achiever",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "portable",
+      "icon": "src/assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "node_modules/**/*"
+    ]
+  }
+}
