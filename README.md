@@ -20,7 +20,8 @@ SideQuest Achiever bridges the gap between everyday productivity and personal gr
   - Category rings displaying progress in each category.
   - Streaks, total completions, and average quest fulfillment.
   - Rankings of the **Most Fulfilling** and **Most Achievable** sidequests.
-- **🗺️ Actionable Roadmaps:** Breakdown individual quests into manageable sub-tasks (roadmap steps) synced as sub-tasks in Todoist.
+- **🗺️ Actionable Roadmaps:** Breakdown individual quests into manageable sub-tasks (roadmap steps) synced as sub-tasks in Todoist. Includes AI-powered step generation.
+- **🛡️ Streak Protection & XP:** Earn experience points from completing quests to purchase streak freezes, protecting your habits during vacations or days off.
 - **💡 Intelligent Suggestion Engine:** Rule-based recommendations tailored to your under-represented categories, seasonal monthly events, and recent activity patterns.
 - **🔄 Flawless Todoist Integration:** Bi-directional sync with the active `/api/v1` REST endpoints. Completing, updating, or adding tasks propagates instantly.
 

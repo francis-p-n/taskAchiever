@@ -47,13 +47,18 @@ Welcome! This file serves as the single source of truth and onboarding context f
 - No active compile or runtime bugs have been reported.
 
 ### Next Steps / Backlog Priorities
-1. Build a Settings view/modal to configure `yearlyGoal` and `todoistApiKey` in the UI instead of modifying store defaults manually.
-2. Support queuing offline operations and replaying Todoist actions upon recovery.
-3. Implement quest archiving to clean the viewport without losing historical analytics records.
+1. Support queuing offline operations and replaying Todoist actions upon recovery.
+2. Implement quest archiving to clean the viewport without losing historical analytics records.
+3. Implement Monthly KPI overviews and global keyboard shortcuts.
 
 ---
 
 ## 📝 Changelog / Recent Edits
+
+### 2026-06-21 (Agent: Antigravity)
+- Added Settings UI Panel allowing users to toggle Todoist sync, set API key, and configure yearly goals.
+- Added AI-powered roadmap step generation (`llm.js`).
+- Implemented Streak Protection/Freezer store logic powered by XP earned from completing quests.
 
 ### 2026-06-20 (Agent: Antigravity)
 - Added initial autodocumentation assets for workspace onboarding:

@@ -4,11 +4,12 @@
 
 const TodoistSync = (() => {
   let projectId = null;
+  let matchingProjects = [];
   let labelIds = {};
   let isSyncing = false;
 
-  // Section name → category mapping for the user's existing Todoist structure
-  const SECTION_CATEGORY_MAP = {
+  // Project name → category mapping for the user's existing Todoist structure
+  const PROJECT_CATEGORY_MAP = {
     'adventure': 'adventure',
     '2026 kpi': 'achievement',
     '2025 kpi': 'achievement',
@@ -57,6 +58,12 @@ const TodoistSync = (() => {
         if (!exists) {
           projectId = await ensureProject();
         }
+        
+        // Update matching projects list based on categories
+        matchingProjects = projects.filter(p => {
+          const key = p.name.toLowerCase().trim();
+          return key.includes('side quest') || key.includes('sidequest') || PROJECT_CATEGORY_MAP[key] !== undefined;
+        });
       } catch (err) {
         console.warn('Could not verify project, will create on next sync:', err.message);
       }
@@ -110,20 +117,20 @@ const TodoistSync = (() => {
     try {
       UI.setSyncStatus('syncing', 'Importing tasks...');
 
-      // Get sections to map tasks to categories
-      const sections = await window.electronAPI.todoist.getSections({ project_id: projectId });
-      const sectionMap = {};
-      const sectionNameMap = {};
-      if (sections) {
-        sections.forEach(s => {
-          const key = s.name.toLowerCase().trim();
-          sectionMap[s.id] = SECTION_CATEGORY_MAP[key] || Categories.autoDetect(s.name);
-          sectionNameMap[s.id] = s.name;
-        });
-      }
+      // Map of project id to category
+      const projectCatMap = {};
+      const projectNameMap = {};
+      matchingProjects.forEach(p => {
+        const key = p.name.toLowerCase().trim();
+        projectCatMap[p.id] = PROJECT_CATEGORY_MAP[key] || null;
+        projectNameMap[p.id] = p.name;
+      });
 
-      // Get all tasks in the project (only top-level, not sub-tasks)
-      const tasks = await window.electronAPI.todoist.getTasks({ project_id: projectId });
+      // Get all tasks across all matching projects
+      const tasksPromises = matchingProjects.map(p => window.electronAPI.todoist.getTasks({ project_id: p.id }));
+      const tasksArray = await Promise.all(tasksPromises);
+      const tasks = tasksArray.flat();
+      
       if (!tasks || tasks.length === 0) return;
 
       // Filter to top-level tasks only
@@ -137,12 +144,11 @@ const TodoistSync = (() => {
       for (const task of topLevelTasks) {
         if (existingTodoistIds.has(task.id)) continue; // Skip already imported
 
-        // Determine category from section or auto-detect
-        const category = task.section_id
-          ? (sectionMap[task.section_id] || Categories.autoDetect(task.content))
-          : Categories.autoDetect(task.content);
+        // Determine category from project or auto-detect
+        const category = projectCatMap[task.project_id] || Categories.autoDetect(task.content);
           
-        const originalSection = task.section_id ? sectionNameMap[task.section_id] : null;
+        // Use project name as original section if it's not the default
+        const originalSection = projectNameMap[task.project_id] !== 'Side Quests' ? projectNameMap[task.project_id] : null;
 
         // Clean title (remove emoji prefixes if any)
         const title = task.content.replace(/^[🗺️🎨📚🏆]\s*/, '');
@@ -228,10 +234,21 @@ const TodoistSync = (() => {
     if (!settings.syncEnabled) return null;
 
     try {
+      // Find the best project ID to use
+      let targetProjectId = projectId;
+      
+      const matchingProj = matchingProjects.find(p => {
+         const key = p.name.toLowerCase().trim();
+         return PROJECT_CATEGORY_MAP[key] === quest.category;
+      });
+      if (matchingProj) {
+         targetProjectId = matchingProj.id;
+      }
+
       const data = {
         content: `${Categories.getCategoryIcon(quest.category)} ${quest.title}`,
         description: quest.description || '',
-        project_id: projectId,
+        project_id: targetProjectId,
         labels: labelIds[quest.category] ? [labelIds[quest.category].toString()] : [],
         priority: Math.min(quest.difficulty || 1, 4),
         due_string: quest.dueDate || undefined
@@ -264,8 +281,7 @@ const TodoistSync = (() => {
     try {
       const data = {
         content: step.text,
-        parent_id: quest.todoistId,
-        project_id: projectId
+        parent_id: quest.todoistId
       };
 
       if (step.todoistId) {
@@ -316,7 +332,9 @@ const TodoistSync = (() => {
     UI.setSyncStatus('syncing', 'Syncing...');
 
     try {
-      const tasks = await window.electronAPI.todoist.getTasks({ project_id: projectId });
+      const tasksPromises = matchingProjects.map(p => window.electronAPI.todoist.getTasks({ project_id: p.id }));
+      const tasksArray = await Promise.all(tasksPromises);
+      const tasks = tasksArray.flat();
       UI.setSyncStatus('', 'Synced');
       return tasks || [];
     } catch (err) {

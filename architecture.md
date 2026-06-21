@@ -86,6 +86,7 @@ graph TD
 *   [categories.js](file:///c:/Users/MSI/Desktop/Projects/taskAchiever/src/js/categories.js) (`Categories`): Evaluates quest metadata text using string matching to categorize quests.
 *   [todoist.js](file:///c:/Users/MSI/Desktop/Projects/taskAchiever/src/js/todoist.js) (`TodoistSync`): Performs two-way synchronization: imports existing project items on first run, maps tasks to categories using section names, generates label overrides, and registers CRUD synchronization.
 *   [roadmap.js](file:///c:/Users/MSI/Desktop/Projects/taskAchiever/src/js/roadmap.js) (`Roadmap`): Controls nested task-list items, handles drag-and-drop re-ordering, toggles completed states, and triggers TodoistSync subtask updates.
+*   [llm.js](file:///c:/Users/MSI/Desktop/Projects/taskAchiever/src/js/llm.js) (`LLM`): Handles AI interactions for generating roadmap steps from quest titles.
 *   [kpi.js](file:///c:/Users/MSI/Desktop/Projects/taskAchiever/src/js/kpi.js) (`KPI`): Compiles metrics (avg fulfillment stars, category distributions, streaks) and renders charts and the SVG activity matrix.
 *   [suggestions.js](file:///c:/Users/MSI/Desktop/Projects/taskAchiever/src/js/suggestions.js) (`Suggestions`): Evaluates categories and generates personalized recommendation cards.
 
@@ -137,7 +138,9 @@ The application persists data structure through local JSON keys:
     "totalCompleted": "number",
     "currentStreak": "number",
     "longestStreak": "number",
-    "lastActiveDate": "string (YYYY-MM-DD) | null"
+    "lastActiveDate": "string (YYYY-MM-DD) | null",
+    "experiencePoints": "number",
+    "streakFreezes": "number"
   },
   "activityLog": {
     "YYYY-MM-DD": "number (quest count completed on this day)"

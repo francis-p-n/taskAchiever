@@ -5,12 +5,22 @@
 const LLM = (() => {
   // Check if Chrome's window.ai (Gemini Nano) is available
   async function isAiAvailable() {
-    if ('ai' in window && window.ai && window.ai.createTextSession) {
-      try {
-        const capability = await window.ai.canCreateTextSession();
-        return capability !== 'no';
-      } catch (e) {
-        return false;
+    if ('ai' in window && window.ai) {
+      if (window.ai.languageModel && window.ai.languageModel.capabilities) {
+        try {
+          const capability = await window.ai.languageModel.capabilities();
+          return capability.available !== 'no';
+        } catch (e) {
+          return false;
+        }
+      }
+      if (window.ai.createTextSession) {
+        try {
+          const capability = await window.ai.canCreateTextSession();
+          return capability !== 'no';
+        } catch (e) {
+          return false;
+        }
       }
     }
     return false;
@@ -45,9 +55,14 @@ Please respond with a JSON array of objects, where each object has:
 
 Output only valid JSON, nothing else.`;
 
-      const session = await window.ai.createTextSession();
+      let session;
+      if (window.ai.languageModel) {
+        session = await window.ai.languageModel.create();
+      } else {
+        session = await window.ai.createTextSession();
+      }
       const response = await session.prompt(prompt);
-      session.destroy();
+      if (session.destroy) session.destroy();
 
       // Attempt to parse JSON from the LLM response
       // Find the first '[' and last ']' to extract JSON safely
@@ -95,9 +110,14 @@ For example, for a marathon, it might be: ["Run 5 mins", "Run 15 mins", "Finish 
 
 Output only valid JSON, nothing else.`;
 
-      const session = await window.ai.createTextSession();
+      let session;
+      if (window.ai.languageModel) {
+        session = await window.ai.languageModel.create();
+      } else {
+        session = await window.ai.createTextSession();
+      }
       const response = await session.prompt(prompt);
-      session.destroy();
+      if (session.destroy) session.destroy();
 
       const jsonStart = response.indexOf('[');
       const jsonEnd = response.lastIndexOf(']') + 1;

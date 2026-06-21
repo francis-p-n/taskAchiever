@@ -23,7 +23,7 @@ This file tracks the completed milestones, active tasks, and planned enhancement
 
 ## 🛠️ Active Development / Immediate Backlog
 
-- [ ] **Settings UI Panel:**
+- [x] **Settings UI Panel:**
   - Add a dedicated view or modal for managing settings.
   - Allow users to customize their `yearlyGoal` and `todoistApiKey` directly within the app rather than editing configuration files.
   - Toggle Todoist synchronization status (`syncEnabled`) on/off manually.
@@ -46,7 +46,7 @@ This file tracks the completed milestones, active tasks, and planned enhancement
 ### Analytics Expansion
 - [ ] **Monthly KPI Overviews:** Line/bar charts showing quest completion trends across months.
 - [ ] **Fulfillment Correlator:** Insight reports displaying which categories correlate to the highest satisfaction.
-- [ ] **Streak Protection/Freezers:** "Streak freeze" items purchased with quest experience points to protect habits during vacations.
+- [x] **Streak Protection/Freezers:** "Streak freeze" items purchased with quest experience points to protect habits during vacations.
 
 ### Customization
 - [ ] **User-Defined Categories:** Edit, delete, or create categories, custom icons, and specify custom parsing keyword rules.
