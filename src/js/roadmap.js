@@ -10,6 +10,12 @@ const Roadmap = (() => {
     // Add step button
     document.getElementById('btn-add-step').addEventListener('click', addStep);
 
+    // AI generate steps button
+    const btnAi = document.getElementById('btn-ai-roadmap');
+    if (btnAi) {
+      btnAi.addEventListener('click', autoGenerateSteps);
+    }
+
     // Enter key on step input
     document.getElementById('roadmap-new-step').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') addStep();
@@ -106,6 +112,46 @@ const Roadmap = (() => {
       await renderSteps(currentQuestId);
       // Update quest card progress
       if (window.App) App.refreshQuestList();
+    }
+  }
+
+  async function autoGenerateSteps() {
+    if (!currentQuestId || typeof LLM === 'undefined') return;
+
+    const quests = await QuestStore.getQuests();
+    const quest = quests.find(q => q.id === currentQuestId);
+    if (!quest) return;
+
+    const btnAi = document.getElementById('btn-ai-roadmap');
+    btnAi.disabled = true;
+    const originalText = btnAi.textContent;
+    btnAi.textContent = '⏳ Generating...';
+
+    try {
+      const newSteps = await LLM.generateRoadmapSteps(quest.title, quest.description || '');
+      if (newSteps && newSteps.length > 0) {
+        for (const stepText of newSteps) {
+          const step = await QuestStore.addStep(quest.id, stepText);
+          if (step && quest.todoistId) {
+             const stepTodoistId = await TodoistSync.syncStepToTodoist(quest, step);
+             if (stepTodoistId) {
+               step.todoistId = stepTodoistId;
+               await QuestStore.updateQuest(quest.id, { steps: quest.steps });
+             }
+          }
+        }
+        UI.toast(`✨ Generated ${newSteps.length} steps!`, 'success');
+        await renderSteps(quest.id);
+        if (window.App) App.refreshQuestList();
+      } else {
+        UI.toast('Could not generate steps. Try again later.', 'error');
+      }
+    } catch (e) {
+      console.error('Roadmap AI generation failed:', e);
+      UI.toast('Error generating steps.', 'error');
+    } finally {
+      btnAi.disabled = false;
+      btnAi.textContent = originalText;
     }
   }
 

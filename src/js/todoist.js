@@ -29,6 +29,18 @@ const TodoistSync = (() => {
   // ─── Initialize ────────────────────────────────────────────────────────
   async function init() {
     try {
+      const settings = await QuestStore.getSettings();
+      if (!settings.syncEnabled) {
+        UI.setSyncStatus('', 'Sync Disabled');
+        return false;
+      }
+      
+      const apiKey = await QuestStore.getTodoistApiKey();
+      if (!apiKey) {
+        UI.setSyncStatus('error', 'No API Key');
+        return false;
+      }
+
       UI.setSyncStatus('syncing', 'Connecting...');
 
       // Get or create the SideQuests project
@@ -212,6 +224,8 @@ const TodoistSync = (() => {
   // ─── Sync Operations ──────────────────────────────────────────────────
   async function syncQuestToTodoist(quest) {
     if (!projectId) return null;
+    const settings = await QuestStore.getSettings();
+    if (!settings.syncEnabled) return null;
 
     try {
       const data = {
@@ -244,6 +258,8 @@ const TodoistSync = (() => {
 
   async function syncStepToTodoist(quest, step) {
     if (!projectId || !quest.todoistId) return null;
+    const settings = await QuestStore.getSettings();
+    if (!settings.syncEnabled) return null;
 
     try {
       const data = {
@@ -267,6 +283,8 @@ const TodoistSync = (() => {
 
   async function completeInTodoist(todoistId) {
     if (!todoistId) return;
+    const settings = await QuestStore.getSettings();
+    if (!settings.syncEnabled) return;
 
     try {
       await window.electronAPI.todoist.closeTask(todoistId);
@@ -277,6 +295,8 @@ const TodoistSync = (() => {
 
   async function deleteInTodoist(todoistId) {
     if (!todoistId) return;
+    const settings = await QuestStore.getSettings();
+    if (!settings.syncEnabled) return;
 
     try {
       await window.electronAPI.todoist.deleteTask(todoistId);
@@ -288,6 +308,9 @@ const TodoistSync = (() => {
   // ─── Pull from Todoist ─────────────────────────────────────────────────
   async function pullFromTodoist() {
     if (!projectId || isSyncing) return [];
+    
+    const settings = await QuestStore.getSettings();
+    if (!settings.syncEnabled) return [];
 
     isSyncing = true;
     UI.setSyncStatus('syncing', 'Syncing...');

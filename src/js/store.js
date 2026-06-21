@@ -125,6 +125,11 @@ const QuestStore = (() => {
 
     stats.totalCompleted = (stats.totalCompleted || 0) + 1;
 
+    // XP calculation
+    const xpEarned = (completedQuest.difficulty || 1) * 10;
+    stats.experiencePoints = (stats.experiencePoints || 0) + xpEarned;
+    stats.streakFreezes = stats.streakFreezes || 0;
+
     // Streak calculation
     const lastDate = stats.lastActiveDate;
     if (lastDate) {
@@ -135,7 +140,13 @@ const QuestStore = (() => {
       if (diffDays === 1) {
         stats.currentStreak = (stats.currentStreak || 0) + 1;
       } else if (diffDays > 1) {
-        stats.currentStreak = 1;
+        const missed = diffDays - 1;
+        if (stats.streakFreezes >= missed) {
+          stats.streakFreezes -= missed;
+          stats.currentStreak = (stats.currentStreak || 0) + 1;
+        } else {
+          stats.currentStreak = 1;
+        }
       }
     } else {
       stats.currentStreak = 1;
@@ -158,7 +169,9 @@ const QuestStore = (() => {
       totalCompleted: 0,
       currentStreak: 0,
       longestStreak: 0,
-      lastActiveDate: null
+      lastActiveDate: null,
+      experiencePoints: 0,
+      streakFreezes: 0
     };
   }
 
@@ -168,6 +181,36 @@ const QuestStore = (() => {
 
   async function getSettings() {
     return (await window.electronAPI.storeGet('settings')) || { syncEnabled: true, yearlyGoal: 52 };
+  }
+
+  async function updateSettings(updates) {
+    const settings = await getSettings();
+    const newSettings = { ...settings, ...updates };
+    await window.electronAPI.storeSet('settings', newSettings);
+    return newSettings;
+  }
+
+  async function getTodoistApiKey() {
+    return (await window.electronAPI.storeGet('todoistApiKey')) || '';
+  }
+
+  async function updateTodoistApiKey(key) {
+    await window.electronAPI.storeSet('todoistApiKey', key);
+    return key;
+  }
+
+  async function buyStreakFreeze() {
+    const stats = await getStats();
+    stats.experiencePoints = stats.experiencePoints || 0;
+    stats.streakFreezes = stats.streakFreezes || 0;
+
+    if (stats.experiencePoints >= 50) {
+      stats.experiencePoints -= 50;
+      stats.streakFreezes += 1;
+      await window.electronAPI.storeSet('stats', stats);
+      return stats;
+    }
+    return null;
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────
@@ -195,6 +238,10 @@ const QuestStore = (() => {
     getStats,
     getActivityLog,
     getSettings,
+    updateSettings,
+    getTodoistApiKey,
+    updateTodoistApiKey,
+    buyStreakFreeze,
     getQuestProgress,
     generateId
   };

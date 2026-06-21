@@ -78,6 +78,12 @@ const App = (() => {
     // Suggestions
     document.getElementById('btn-refresh-suggestions').addEventListener('click', () => Suggestions.render());
 
+    // Settings
+    const btnSaveSettings = document.getElementById('btn-save-settings');
+    if (btnSaveSettings) {
+      btnSaveSettings.addEventListener('click', saveSettings);
+    }
+
     // Suggestion card clicks (delegated)
     document.getElementById('suggestions-list').addEventListener('click', handleSuggestionClick);
 
@@ -145,6 +151,7 @@ const App = (() => {
     // Render view-specific content
     if (view === 'kpi') KPI.render();
     if (view === 'suggestions') Suggestions.render();
+    if (view === 'settings') loadSettings();
   }
 
   // ─── Quest List Rendering ─────────────────────────────────────────────
@@ -482,6 +489,47 @@ const App = (() => {
     document.getElementById('stat-active').textContent = quests.length;
     document.getElementById('stat-completed').textContent = completed.length;
     document.getElementById('stat-streak').textContent = stats.currentStreak || 0;
+  }
+
+  // ─── Settings ───────────────────────────────────────────────────────────
+  async function loadSettings() {
+    const settings = await QuestStore.getSettings();
+    const apiKey = await QuestStore.getTodoistApiKey();
+
+    const yearlyGoalInput = document.getElementById('setting-yearly-goal');
+    if (yearlyGoalInput) yearlyGoalInput.value = settings.yearlyGoal || 52;
+    
+    const apiInput = document.getElementById('setting-todoist-api');
+    if (apiInput) apiInput.value = apiKey || '';
+    
+    const syncInput = document.getElementById('setting-sync-enabled');
+    if (syncInput) syncInput.checked = settings.syncEnabled !== false;
+  }
+
+  async function saveSettings() {
+    const yearlyGoalInput = document.getElementById('setting-yearly-goal');
+    const apiInput = document.getElementById('setting-todoist-api');
+    const syncInput = document.getElementById('setting-sync-enabled');
+
+    const yearlyGoal = yearlyGoalInput ? (parseInt(yearlyGoalInput.value) || 52) : 52;
+    const apiKey = apiInput ? apiInput.value.trim() : '';
+    const syncEnabled = syncInput ? syncInput.checked : true;
+
+    await QuestStore.updateSettings({ yearlyGoal, syncEnabled });
+    await QuestStore.updateTodoistApiKey(apiKey);
+
+    UI.toast('Settings saved successfully', 'success');
+
+    // Re-initialize Todoist in case key or sync changed
+    TodoistSync.init().then(success => {
+      if (success) {
+        UI.toast('Todoist connected', 'success');
+      } else if (!syncEnabled) {
+        UI.toast('Todoist sync disabled', 'info');
+      } else {
+        UI.toast('Todoist connection failed', 'error');
+      }
+    });
   }
 
   // ─── Public API ────────────────────────────────────────────────────────

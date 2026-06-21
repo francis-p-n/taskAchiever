@@ -15,6 +15,16 @@ const KPI = (() => {
       currentYear++;
       render();
     });
+
+    document.getElementById('btn-buy-freeze').addEventListener('click', async () => {
+      const stats = await QuestStore.buyStreakFreeze();
+      if (stats) {
+        window.UI.toast('Streak Freeze purchased! ❄️', 'success');
+        render();
+      } else {
+        window.UI.toast('Not enough XP. Need 50 XP.', 'error');
+      }
+    });
   }
 
   async function render() {
@@ -48,8 +58,13 @@ const KPI = (() => {
     document.getElementById('kpi-total-completed').textContent = totalCompleted;
     document.getElementById('kpi-completion-rate').textContent = `${completionRate}% of ${goal} goal`;
 
-    document.getElementById('kpi-streak').textContent = stats.currentStreak || 0;
+    document.getElementById('kpi-streak').querySelector('span').textContent = stats.currentStreak || 0;
     document.getElementById('kpi-longest-streak').textContent = `Longest: ${stats.longestStreak || 0} days`;
+
+    const xp = stats.experiencePoints || 0;
+    const freezes = stats.streakFreezes || 0;
+    document.getElementById('kpi-xp-freezes').textContent = `${xp} XP · ${freezes} ❄️`;
+    document.getElementById('btn-buy-freeze').disabled = xp < 50;
 
     // Average fulfillment
     const ratedQuests = yearCompleted.filter(q => q.fulfillment && q.fulfillment > 0);
@@ -65,8 +80,14 @@ const KPI = (() => {
       : 0;
     document.getElementById('kpi-avg-progress').textContent = `${avgProgress}% avg progress`;
 
+    // ─── Monthly Chart ────────────────────────────────────────────────
+    renderMonthlyChart(yearCompleted);
+
     // ─── Category Rings ───────────────────────────────────────────────
     renderCategoryRings(yearCompleted, quests);
+
+    // ─── Fulfillment Correlator ───────────────────────────────────────
+    renderCorrelator(yearCompleted);
 
     // ─── Most Fulfilling ──────────────────────────────────────────────
     renderFulfillingList(yearCompleted);
@@ -76,6 +97,70 @@ const KPI = (() => {
 
     // ─── Heatmap ─────────────────────────────────────────────────────
     renderHeatmap(activityLog);
+  }
+
+  // ─── Monthly Chart ──────────────────────────────────────────────────
+  function renderMonthlyChart(completed) {
+    const container = document.getElementById('kpi-monthly-chart');
+    container.innerHTML = '';
+
+    const monthlyCounts = new Array(12).fill(0);
+    completed.forEach(q => {
+      if (!q.completedAt) return;
+      const month = new Date(q.completedAt).getMonth();
+      monthlyCounts[month]++;
+    });
+
+    const maxCount = Math.max(...monthlyCounts, 5); // Minimum scale of 5
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    monthlyCounts.forEach((count, i) => {
+      const heightPct = Math.round((count / maxCount) * 100);
+      
+      const col = document.createElement('div');
+      col.style.flex = '1';
+      col.style.display = 'flex';
+      col.style.flexDirection = 'column';
+      col.style.justifyContent = 'flex-end';
+      col.style.alignItems = 'center';
+      col.style.gap = '4px';
+
+      const barContainer = document.createElement('div');
+      barContainer.style.width = '100%';
+      barContainer.style.height = '100%';
+      barContainer.style.display = 'flex';
+      barContainer.style.alignItems = 'flex-end';
+      barContainer.style.justifyContent = 'center';
+
+      const bar = document.createElement('div');
+      bar.style.width = '24px';
+      bar.style.height = `${heightPct}%`;
+      bar.style.background = 'var(--primary)';
+      bar.style.borderRadius = '4px 4px 0 0';
+      bar.style.transition = 'height 0.3s ease';
+      if (count === 0) {
+        bar.style.height = '2px';
+        bar.style.background = 'var(--border)';
+      }
+
+      const label = document.createElement('span');
+      label.textContent = monthNames[i];
+      label.style.fontSize = 'var(--font-xs)';
+      label.style.color = 'var(--text-muted)';
+
+      const countLabel = document.createElement('span');
+      countLabel.textContent = count > 0 ? count : '';
+      countLabel.style.fontSize = 'var(--font-xs)';
+      countLabel.style.fontWeight = 'bold';
+      countLabel.style.height = '14px';
+
+      barContainer.appendChild(bar);
+      col.appendChild(countLabel);
+      col.appendChild(barContainer);
+      col.appendChild(label);
+      
+      container.appendChild(col);
+    });
   }
 
   // ─── Category Ring Charts ─────────────────────────────────────────────
@@ -142,6 +227,37 @@ const KPI = (() => {
           <div class="sub">${q.category} · completed ${formatRelative(q.completedAt)}</div>
         </div>
         <span class="score">${'★'.repeat(q.fulfillment)}</span>
+      </div>
+    `).join('');
+  }
+
+  // ─── Fulfillment Correlator ───────────────────────────────────────────
+  function renderCorrelator(completed) {
+    const container = document.getElementById('kpi-correlator');
+    const rated = completed.filter(q => q.fulfillment && q.fulfillment > 0);
+
+    if (rated.length === 0) {
+      container.innerHTML = '<p class="kpi-empty">Complete and rate quests to see insights</p>';
+      return;
+    }
+
+    const categories = ['adventure', 'creative', 'scholarly', 'achievement'];
+    const stats = categories.map(cat => {
+      const catRated = rated.filter(q => q.category === cat);
+      const avg = catRated.length > 0 
+        ? catRated.reduce((sum, q) => sum + q.fulfillment, 0) / catRated.length
+        : 0;
+      return { cat, avg, count: catRated.length };
+    }).filter(s => s.count > 0).sort((a, b) => b.avg - a.avg);
+
+    container.innerHTML = stats.map((s, i) => `
+      <div class="kpi-list-item">
+        <span class="rank">${i + 1}</span>
+        <div class="info">
+          <div class="name">${Categories.getCategoryIcon(s.cat)} ${s.cat}</div>
+          <div class="sub">${s.count} quests rated</div>
+        </div>
+        <span class="score">${s.avg.toFixed(1)} ★</span>
       </div>
     `).join('');
   }

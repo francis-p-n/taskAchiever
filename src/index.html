@@ -53,6 +53,10 @@
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
           <span>Suggestions</span>
         </button>
+        <button class="nav-item" data-view="settings" id="nav-settings">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Settings</span>
+        </button>
       </nav>
 
       <!-- Category Filters -->
@@ -156,8 +160,14 @@
               <span class="kpi-icon">🔥</span>
               <span class="kpi-label">Current Streak</span>
             </div>
-            <div class="kpi-value" id="kpi-streak">0</div>
-            <div class="kpi-sub" id="kpi-longest-streak">Longest: 0 days</div>
+            <div class="kpi-value" id="kpi-streak" style="display:flex; justify-content:space-between; align-items:flex-end;">
+              <span>0</span>
+              <button id="btn-buy-freeze" class="btn btn-ghost btn-sm" style="font-size:var(--font-xs); padding:4px 8px; border:1px solid var(--border);">❄️ Buy Freeze (50 XP)</button>
+            </div>
+            <div class="kpi-sub" style="display:flex; justify-content:space-between;">
+              <span id="kpi-longest-streak">Longest: 0 days</span>
+              <span id="kpi-xp-freezes">0 XP · 0 ❄️</span>
+            </div>
           </div>
           <div class="kpi-card">
             <div class="kpi-card-header">
@@ -177,6 +187,14 @@
           </div>
         </div>
 
+        <!-- Monthly Trends -->
+        <div class="kpi-section">
+          <h2 class="section-title">Monthly Completions</h2>
+          <div id="kpi-monthly-chart" class="monthly-chart-container" style="display:flex; align-items:flex-end; gap:8px; height:150px; padding-top:20px; border-bottom:1px solid var(--border);">
+            <!-- Rendered by kpi.js -->
+          </div>
+        </div>
+
         <!-- Category Rings -->
         <div class="kpi-section">
           <h2 class="section-title">Category Breakdown</h2>
@@ -185,8 +203,14 @@
           </div>
         </div>
 
-        <!-- Most Fulfilling / Most Achievable -->
+        <!-- Fulfillment Insights & Most Fulfilling -->
         <div class="kpi-two-col">
+          <div class="kpi-section">
+            <h2 class="section-title">Fulfillment Insights</h2>
+            <div id="kpi-correlator" class="kpi-list">
+              <p class="kpi-empty">Complete quests and rate them to see your top categories</p>
+            </div>
+          </div>
           <div class="kpi-section">
             <h2 class="section-title">Most Fulfilling Quests</h2>
             <div id="kpi-fulfilling-list" class="kpi-list">
@@ -224,6 +248,33 @@
         </div>
         <div id="suggestions-list" class="suggestions-grid">
           <!-- Rendered by suggestions.js -->
+        </div>
+      </section>
+
+      <!-- Settings View -->
+      <section id="view-settings" class="view">
+        <div class="view-header">
+          <div>
+            <h1 class="view-title">Settings</h1>
+            <p class="view-subtitle">Customize your side quest experience</p>
+          </div>
+        </div>
+        <div class="settings-container" style="max-width: 600px; padding: 20px 0;">
+          <div class="form-group">
+            <label for="setting-yearly-goal">Yearly Quest Goal</label>
+            <input type="number" id="setting-yearly-goal" class="text-input" min="1" value="52">
+            <p class="form-hint" style="font-size: var(--font-xs); color: var(--text-muted); margin-top: 4px;">Target number of quests to complete in a year.</p>
+          </div>
+          <div class="form-group">
+            <label for="setting-todoist-api">Todoist API Key</label>
+            <input type="password" id="setting-todoist-api" class="text-input" placeholder="Your API Token">
+            <p class="form-hint" style="font-size: var(--font-xs); color: var(--text-muted); margin-top: 4px;">Find this in your Todoist Developer integrations page.</p>
+          </div>
+          <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
+            <input type="checkbox" id="setting-sync-enabled" style="width: 18px; height: 18px;">
+            <label for="setting-sync-enabled" style="margin: 0; cursor: pointer;">Enable Todoist Synchronization</label>
+          </div>
+          <button id="btn-save-settings" class="btn btn-primary">Save Settings</button>
         </div>
       </section>
     </main>
@@ -273,7 +324,10 @@
         <div class="detail-roadmap">
           <div class="roadmap-header">
             <h3>Roadmap</h3>
-            <span class="roadmap-progress" id="roadmap-progress-label">0 / 0 steps</span>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button id="btn-ai-roadmap" class="btn btn-ghost btn-sm" style="font-size: var(--font-xs); padding: 4px 8px;">✨ Auto-generate steps</button>
+              <span class="roadmap-progress" id="roadmap-progress-label">0 / 0 steps</span>
+            </div>
           </div>
           <div class="roadmap-progress-bar">
             <div class="roadmap-progress-fill" id="roadmap-progress-fill" style="width: 0%"></div>
