@@ -32,14 +32,14 @@ This file tracks the completed milestones, active tasks, and planned enhancement
 ## 🔮 Future Phases
 
 ### Fitness & Health
-- [ ] **Health Connect Integration:** Read native CMF watch steps/heart-rate data on Android.
-- [ ] **Fitness Dashboard:** Visual progress tracking against customizable goals.
+- [x] **Health Connect Integration:** Read native CMF watch steps/heart-rate data on Android.
+- [x] **Fitness Dashboard:** Visual progress tracking against customizable goals.
 
 ### Schedule & Spending
-- [ ] **Google Calendar Sync:** Two-way sync worker for daily events.
-- [ ] **Plaid Integration:** Webhook-driven background ingestion of bank transactions.
-- [ ] **Budget Dashboards:** Monthly spending thresholds and categorizations.
+- [x] **Google Calendar Sync:** Two-way sync worker for daily events.
+- [x] **Plaid Integration:** Webhook-driven background ingestion of bank transactions.
+- [x] **Budget Dashboards:** Monthly spending thresholds and categorizations.
 
 ### AI & Suggestions
-- [ ] **Claude API Service:** Generate roadmap steps dynamically via LLM.
-- [ ] **Smart Suggestions Engine:** Multi-domain heuristic suggestions (e.g. "You haven't run this week, and the weather is nice.")
+- [x] **Claude API Service:** Generate roadmap steps dynamically via LLM.
+- [x] **Smart Suggestions Engine:** Multi-domain heuristic suggestions (e.g. "You haven't run this week, and the weather is nice.")

@@ -42,12 +42,12 @@ Welcome! This file serves as the single source of truth and onboarding context f
 
 ### Current Focus
 - The system architecture has just undergone a massive rewrite from local Electron to a Client-Server Flutter/Fastify model.
-- Backend infrastructure (Postgres, Redis, Fastify) is scaffolded with Phase 1 (Auth), Phase 2 (Quests), Phase 3 (Todoist), and Phase 4 (Sync) logically implemented.
+- Backend infrastructure (Postgres, Redis, Fastify) is fully scaffolded across ALL 9 phases, including Auth, Quests, Sync, Todoist, Data Migration, Calendar, Fitness, Spending (Plaid), and AI Generation (Claude).
 
 ### Immediate Next Steps
-1. Define the Isar local database schemas inside the Flutter app.
-2. Build the `SyncEngine` client-side Dart service to communicate with `/api/sync/push`.
-3. Construct the Flutter UI for Quests and Gamification.
+1. Define the remaining Isar local database schemas inside the Flutter app.
+2. Construct the Flutter UI for Quests, Fitness, Spending, and Scheduling using Riverpod.
+3. Test the end-to-end webhook flows with Plaid Sandbox.
 
 ---
 
@@ -60,4 +60,6 @@ Welcome! This file serves as the single source of truth and onboarding context f
 - Implemented `Drizzle` schema (`users`, `quests`, `user_stats`).
 - Implemented JWT Auth & Redis Session logic.
 - Created Backend sync endpoints (`/api/sync/push`) supporting Redis locking.
-- Created BullMQ worker for Todoist synchronization.
+- Created BullMQ workers for Todoist and Google Calendar synchronization.
+- Created `migration.ts` to seamlessly import legacy v1.0 local JSON data to Postgres.
+- Initialized REST endpoints for Plaid webhooks, Health Connect ingestion, and Anthropic LLM roadmap generation.

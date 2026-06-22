@@ -15,6 +15,9 @@ fastify.register(jwt, { secret: process.env.JWT_SECRET || 'supersecret_life_achi
 fastify.register(authRoutes);
 fastify.register(questRoutes);
 fastify.register(require('./routes/sync.routes').default);
+fastify.register(require('./routes/fitness.routes').default);
+fastify.register(require('./routes/plaid.routes').default);
+fastify.register(require('./routes/ai.routes').default);
 
 // Health check route
 fastify.get('/api/health', async (request, reply) => {

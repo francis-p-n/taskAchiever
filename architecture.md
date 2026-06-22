@@ -31,6 +31,8 @@ graph TD
     subgraph External Systems
         todoist[Todoist REST API v1]
         google[Google OAuth / Calendar]
+        plaid[Plaid API]
+        anthropic[Anthropic Claude API]
     end
 
     %% Client internal
@@ -57,6 +59,8 @@ graph TD
     %% External
     todoist_worker <-->|HTTPS| todoist
     auth_svc <-->|HTTPS| google
+    api <-->|Webhooks| plaid
+    api <-->|LLM| anthropic
 ```
 
 ---
@@ -68,8 +72,10 @@ graph TD
 *   **Auth Service:** Uses Google Sign-In with Fastify-JWT. Short-lived Access Tokens (15m) and long-lived Refresh Tokens (7d) stored securely in Redis.
 *   **Database ORM:** Drizzle ORM manages strict TypeScript schema definitions mapping to PostgreSQL tables.
 *   **Quest Service:** Handles the CRUD of quests, calculation of user statistics, streak freezes, and XP distribution. Heavily caches data into Redis.
+*   **Fitness & Finance Services:** Endpoints to ingest mobile Health Connect data and process incoming webhooks from Plaid for spending tracking.
+*   **AI Service:** Leverages the Anthropic Claude API to dynamically break down complex quests into manageable roadmaps.
 *   **Offline Sync Service:** Exposes `/api/sync/push` and `/api/sync/pull` endpoints. Utilizes Redis distributed locks (`SET NX EX`) to safely process batch offline operations.
-*   **Background Workers:** Uses BullMQ to manage asynchronous jobs, specifically the `todoist-sync` worker which synchronizes quests with a user's Todoist account securely.
+*   **Background Workers:** Uses BullMQ to manage asynchronous jobs, specifically the `todoist-sync` worker and the `calendar-sync` worker which synchronize quests and events with external systems.
 
 ### 2. Frontend Client (`apps/flutter`)
 *   **Framework:** Built on Flutter to compile natively to Windows, iOS, and Android from a single codebase.
