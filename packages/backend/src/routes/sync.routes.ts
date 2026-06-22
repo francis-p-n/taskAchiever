@@ -37,7 +37,7 @@ export default async function syncRoutes(fastify: FastifyInstance) {
 
     // Prevent concurrent syncs for the same user domain using Redis Lock
     const lockKey = `sync:lock:${user.id}:quests`;
-    const lock = await redis.set(lockKey, 'locked', 'NX', 'EX', 30);
+    const lock = await redis.set(lockKey, 'locked', 'EX', 30, 'NX');
     
     if (!lock) {
       return reply.status(409).send({ error: 'Sync already in progress' });

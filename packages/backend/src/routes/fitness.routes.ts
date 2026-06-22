@@ -1,26 +1,41 @@
 import { FastifyInstance } from 'fastify';
 import { authenticate } from '../middleware/auth';
 import { db } from '../db';
-// Assume schema has fitnessEntries
-// import { fitnessEntries } from '../db/schema';
+import { healthMetrics } from '../db/schema';
+import { eq, and, gte } from 'drizzle-orm';
 
 export default async function fitnessRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', authenticate);
 
-  fastify.post('/api/fitness/sync', async (request, reply) => {
+  fastify.get('/api/fitness/daily', async (request, reply) => {
     const user = request.user as { id: number };
-    const { payload } = request.body as { payload: any[] };
-    
-    // Skeleton implementation for ingesting Health Connect data (steps, heart rate)
-    // 1. Validate payload format
-    // 2. Batch insert/upsert into `fitness_entries` table
-    
-    console.log(`Ingested ${payload?.length || 0} fitness entries for user ${user.id}`);
-    return reply.send({ success: true, count: payload?.length || 0 });
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const metrics = await db.query.healthMetrics.findFirst({
+      where: and(
+        eq(healthMetrics.userId, user.id),
+        gte(healthMetrics.date, today)
+      )
+    });
+
+    return reply.send(metrics || {});
   });
 
-  fastify.get('/api/fitness/dashboard', async (request, reply) => {
-    // Return aggregated charts data for the frontend
-    return reply.send({ stepsToday: 8400, activeCalories: 450 });
+  fastify.post('/api/fitness', async (request, reply) => {
+    const user = request.user as { id: number };
+    const data = request.body as any;
+
+    const [metric] = await db.insert(healthMetrics).values({
+      userId: user.id,
+      date: new Date(),
+      steps: data.steps,
+      caloriesBurned: data.caloriesBurned,
+      heartRateMin: data.heartRateMin,
+      heartRateMax: data.heartRateMax,
+      sleepScore: data.sleepScore,
+    }).returning();
+
+    return reply.status(201).send(metric);
   });
 }

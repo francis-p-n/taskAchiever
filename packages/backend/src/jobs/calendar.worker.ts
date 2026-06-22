@@ -18,4 +18,4 @@ export const calendarWorker = new Worker('calendar-sync', async job => {
   // 4. Send any locally created events to Google
   
   return { status: 'success', syncedEvents: 0 };
-}, { connection: redisConnection });
+}, { connection: redisConnection as any });

@@ -16,6 +16,9 @@ fastify.register(authRoutes);
 fastify.register(questRoutes);
 fastify.register(require('./routes/sync.routes').default);
 fastify.register(require('./routes/fitness.routes').default);
+fastify.register(require('./routes/food.routes').default);
+fastify.register(require('./routes/spending.routes').default);
+fastify.register(require('./routes/schedule.routes').default);
 fastify.register(require('./routes/plaid.routes').default);
 fastify.register(require('./routes/ai.routes').default);
 

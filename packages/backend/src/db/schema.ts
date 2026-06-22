@@ -50,3 +50,43 @@ export const userSettings = pgTable('user_settings', {
   syncEnabled: boolean('sync_enabled').default(true),
   yearlyGoal: integer('yearly_goal').default(52),
 });
+
+export const healthMetrics = pgTable('health_metrics', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  date: timestamp('date').notNull(),
+  steps: integer('steps').default(0),
+  caloriesBurned: integer('calories_burned').default(0),
+  heartRateMin: integer('heart_rate_min'),
+  heartRateMax: integer('heart_rate_max'),
+  sleepScore: integer('sleep_score'),
+});
+
+export const nutritionLogs = pgTable('nutrition_logs', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  mealType: text('meal_type').notNull(), // Breakfast, Lunch, Dinner, Snack
+  calories: integer('calories').notNull(),
+  protein: integer('protein'),
+  carbs: integer('carbs'),
+  fats: integer('fats'),
+  loggedAt: timestamp('logged_at').defaultNow().notNull(),
+});
+
+export const transactions = pgTable('transactions', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  amount: integer('amount').notNull(), // Stored in cents
+  category: text('category'),
+  merchant: text('merchant'),
+  transactionDate: timestamp('transaction_date').notNull(),
+});
+
+export const scheduleEvents = pgTable('schedule_events', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  title: text('title').notNull(),
+  startTime: timestamp('start_time').notNull(),
+  endTime: timestamp('end_time').notNull(),
+  isGoogleEvent: boolean('is_google_event').default(false),
+});

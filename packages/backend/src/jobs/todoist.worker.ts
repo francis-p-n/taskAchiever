@@ -10,7 +10,7 @@ export const todoistWorker = new Worker('todoist-sync', async job => {
   const { userId } = job.data;
   console.log(`Processing Todoist sync for user ${userId}`);
   return await TodoistService.syncUser(userId);
-}, { connection: redisConnection });
+}, { connection: redisConnection as any });
 
 todoistWorker.on('completed', job => {
   console.log(`Job ${job.id} completed successfully`);
