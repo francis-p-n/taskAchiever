@@ -71,11 +71,13 @@ const TodoistSync = (() => {
       // Ensure category labels exist
       await ensureLabels();
 
-      // Import existing tasks on first run
+      // Import existing tasks
       const imported = await window.electronAPI.storeGet('todoistImported');
-      if (!imported && projectId) {
+      if (projectId) {
         await importExistingTasks();
-        await window.electronAPI.storeSet('todoistImported', true);
+        if (!imported) {
+          await window.electronAPI.storeSet('todoistImported', true);
+        }
       }
 
       UI.setSyncStatus('', 'Synced');

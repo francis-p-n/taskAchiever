@@ -55,6 +55,9 @@ Welcome! This file serves as the single source of truth and onboarding context f
 
 ## 📝 Changelog / Recent Edits
 
+### 2026-06-22 (Agent: Antigravity)
+- Modified `src/js/todoist.js` to call `importExistingTasks()` on every app startup (if a project ID exists) rather than just the first run, improving synchronization reliability.
+
 ### 2026-06-21 (Agent: Antigravity)
 - Added Settings UI Panel allowing users to toggle Todoist sync, set API key, and configure yearly goals.
 - Added AI-powered roadmap step generation (`llm.js`).

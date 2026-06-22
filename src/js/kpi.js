@@ -96,7 +96,7 @@ const KPI = (() => {
     await renderAchievableList(quests);
 
     // ─── Heatmap ─────────────────────────────────────────────────────
-    renderHeatmap(activityLog);
+    renderHeatmap(activityLog, settings);
   }
 
   // ─── Monthly Chart ──────────────────────────────────────────────────
@@ -300,7 +300,7 @@ const KPI = (() => {
   }
 
   // ─── Activity Heatmap ─────────────────────────────────────────────────
-  function renderHeatmap(activityLog) {
+  function renderHeatmap(activityLog, settings) {
     const container = document.getElementById('kpi-heatmap');
     container.innerHTML = '';
 
@@ -311,13 +311,25 @@ const KPI = (() => {
     const startDate = new Date(currentYear, 0, 1);
     const endDate = new Date(currentYear, 11, 31);
 
-    // Adjust to start on Sunday
+    // Adjust to start on first day
     const firstDay = new Date(startDate);
-    firstDay.setDate(firstDay.getDate() - firstDay.getDay());
+    const dayOfWeek = firstDay.getDay();
+    if (settings && settings.firstDayOfWeek === 'monday') {
+      const offset = (dayOfWeek + 6) % 7;
+      firstDay.setDate(firstDay.getDate() - offset);
+    } else {
+      firstDay.setDate(firstDay.getDate() - dayOfWeek); // default Sunday
+    }
 
     const today = new Date();
+    
+    const isEndConditionMet = (d) => {
+      if (d <= endDate) return false;
+      const targetDay = settings && settings.firstDayOfWeek === 'monday' ? 1 : 0;
+      return d.getDay() === targetDay;
+    };
 
-    for (let d = new Date(firstDay); d <= endDate || d.getDay() !== 0; d.setDate(d.getDate() + 1)) {
+    for (let d = new Date(firstDay); !isEndConditionMet(d); d.setDate(d.getDate() + 1)) {
       const dateStr = d.toISOString().split('T')[0];
       const count = activityLog[dateStr] || 0;
       const isFuture = d > today;

@@ -122,6 +122,10 @@ const App = (() => {
     updateCategoryCounts();
     updateSidebarStats();
 
+    // Apply theme on load
+    const settings = await QuestStore.getSettings();
+    applyTheme(settings.theme || 'system');
+
     // Initialize Todoist sync (non-blocking)
     TodoistSync.init().then(success => {
       if (success) {
@@ -389,6 +393,11 @@ const App = (() => {
     if (quest) {
       UI.toast(`🎉 Quest "${quest.title}" completed!`, 'success');
 
+      const settings = await QuestStore.getSettings();
+      if (settings.enableSounds !== false) {
+        triggerCompletionEffect();
+      }
+
       // Complete in Todoist
       if (quest.todoistId) {
         await TodoistSync.completeInTodoist(quest.todoistId);
@@ -496,6 +505,18 @@ const App = (() => {
     const settings = await QuestStore.getSettings();
     const apiKey = await QuestStore.getTodoistApiKey();
 
+    const themeInput = document.getElementById('setting-theme');
+    if (themeInput) themeInput.value = settings.theme || 'system';
+
+    const firstDayInput = document.getElementById('setting-first-day');
+    if (firstDayInput) firstDayInput.value = settings.firstDayOfWeek || 'monday';
+
+    const soundsInput = document.getElementById('setting-enable-sounds');
+    if (soundsInput) soundsInput.checked = settings.enableSounds !== false;
+
+    const autoFreezeInput = document.getElementById('setting-auto-freeze');
+    if (autoFreezeInput) autoFreezeInput.checked = settings.autoFreeze !== false;
+
     const yearlyGoalInput = document.getElementById('setting-yearly-goal');
     if (yearlyGoalInput) yearlyGoalInput.value = settings.yearlyGoal || 52;
     
@@ -507,16 +528,26 @@ const App = (() => {
   }
 
   async function saveSettings() {
+    const themeInput = document.getElementById('setting-theme');
+    const firstDayInput = document.getElementById('setting-first-day');
+    const soundsInput = document.getElementById('setting-enable-sounds');
+    const autoFreezeInput = document.getElementById('setting-auto-freeze');
     const yearlyGoalInput = document.getElementById('setting-yearly-goal');
     const apiInput = document.getElementById('setting-todoist-api');
     const syncInput = document.getElementById('setting-sync-enabled');
 
+    const theme = themeInput ? themeInput.value : 'system';
+    const firstDayOfWeek = firstDayInput ? firstDayInput.value : 'monday';
+    const enableSounds = soundsInput ? soundsInput.checked : true;
+    const autoFreeze = autoFreezeInput ? autoFreezeInput.checked : true;
     const yearlyGoal = yearlyGoalInput ? (parseInt(yearlyGoalInput.value) || 52) : 52;
     const apiKey = apiInput ? apiInput.value.trim() : '';
     const syncEnabled = syncInput ? syncInput.checked : true;
 
-    await QuestStore.updateSettings({ yearlyGoal, syncEnabled });
+    await QuestStore.updateSettings({ theme, firstDayOfWeek, enableSounds, autoFreeze, yearlyGoal, syncEnabled });
     await QuestStore.updateTodoistApiKey(apiKey);
+
+    applyTheme(theme);
 
     UI.toast('Settings saved successfully', 'success');
 
@@ -533,6 +564,49 @@ const App = (() => {
   }
 
   // ─── Public API ────────────────────────────────────────────────────────
+  function applyTheme(theme) {
+    if (theme === 'system') {
+      document.body.removeAttribute('data-theme');
+      // If system prefers light, maybe we can query media, but default is dark in CSS anyway.
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+        document.body.setAttribute('data-theme', 'light');
+      }
+    } else {
+      document.body.setAttribute('data-theme', theme);
+    }
+  }
+
+  function triggerCompletionEffect() {
+    const flash = document.createElement('div');
+    flash.style.position = 'fixed';
+    flash.style.inset = '0';
+    flash.style.background = 'rgba(255, 255, 255, 0.2)';
+    flash.style.zIndex = '9999';
+    flash.style.pointerEvents = 'none';
+    flash.style.transition = 'opacity 0.5s ease-out';
+    document.body.appendChild(flash);
+    
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.1);
+    } catch(e) {}
+
+    setTimeout(() => {
+      flash.style.opacity = '0';
+      setTimeout(() => flash.remove(), 500);
+    }, 50);
+  }
+
   async function refreshQuestList() {
     await renderQuestList();
     updateCategoryCounts();
@@ -543,6 +617,7 @@ const App = (() => {
     init,
     refreshQuestList,
     switchView,
+    applyTheme,
     getCurrentFilter: () => currentFilter
   };
 })();

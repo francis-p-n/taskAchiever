@@ -261,6 +261,21 @@
         </div>
         <div class="settings-container" style="max-width: 600px; padding: 20px 0;">
           <div class="form-group">
+            <label for="setting-theme">Theme</label>
+            <select id="setting-theme" class="select-input" style="width: 100%;">
+              <option value="system">💻 System Default</option>
+              <option value="dark">🌙 Dark Theme</option>
+              <option value="light">☀️ Light Theme</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="setting-first-day">First Day of Week (Heatmap)</label>
+            <select id="setting-first-day" class="select-input" style="width: 100%;">
+              <option value="monday">Monday</option>
+              <option value="sunday">Sunday</option>
+            </select>
+          </div>
+          <div class="form-group">
             <label for="setting-yearly-goal">Yearly Quest Goal</label>
             <input type="number" id="setting-yearly-goal" class="text-input" min="1" value="52">
             <p class="form-hint" style="font-size: var(--font-xs); color: var(--text-muted); margin-top: 4px;">Target number of quests to complete in a year.</p>
@@ -270,9 +285,17 @@
             <input type="password" id="setting-todoist-api" class="text-input" placeholder="Your API Token">
             <p class="form-hint" style="font-size: var(--font-xs); color: var(--text-muted); margin-top: 4px;">Find this in your Todoist Developer integrations page.</p>
           </div>
-          <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
+          <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
             <input type="checkbox" id="setting-sync-enabled" style="width: 18px; height: 18px;">
             <label for="setting-sync-enabled" style="margin: 0; cursor: pointer;">Enable Todoist Synchronization</label>
+          </div>
+          <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+            <input type="checkbox" id="setting-enable-sounds" style="width: 18px; height: 18px;">
+            <label for="setting-enable-sounds" style="margin: 0; cursor: pointer;">Enable Sounds & Animations</label>
+          </div>
+          <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
+            <input type="checkbox" id="setting-auto-freeze" style="width: 18px; height: 18px;">
+            <label for="setting-auto-freeze" style="margin: 0; cursor: pointer;">Auto-consume Streak Freezes to protect streak</label>
           </div>
           <button id="btn-save-settings" class="btn btn-primary">Save Settings</button>
         </div>

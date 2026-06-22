@@ -95,6 +95,32 @@
   --duration-slow: 400ms;
 }
 
+[data-theme="light"] {
+  /* Background Colors */
+  --bg-primary: #F9FAFB;
+  --bg-secondary: #FFFFFF;
+  --bg-tertiary: #F3F4F6;
+  --bg-elevated: #FFFFFF;
+  --bg-glass: rgba(0, 0, 0, 0.04);
+  --bg-glass-hover: rgba(0, 0, 0, 0.08);
+  --bg-glass-active: rgba(0, 0, 0, 0.12);
+
+  /* Text Colors */
+  --text-primary: #111827;
+  --text-secondary: #4B5563;
+  --text-muted: #9CA3AF;
+  --text-inverse: #FFFFFF;
+
+  /* Borders */
+  --border-subtle: #E5E7EB;
+  --border-medium: #D1D5DB;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
 /* ─── Reset & Base ───────────────────────────────────────────────────────── */
 *, *::before, *::after {
   box-sizing: border-box;

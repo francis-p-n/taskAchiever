@@ -131,6 +131,7 @@ const QuestStore = (() => {
     stats.streakFreezes = stats.streakFreezes || 0;
 
     // Streak calculation
+    const settings = await getSettings();
     const lastDate = stats.lastActiveDate;
     if (lastDate) {
       const last = new Date(lastDate);
@@ -141,7 +142,7 @@ const QuestStore = (() => {
         stats.currentStreak = (stats.currentStreak || 0) + 1;
       } else if (diffDays > 1) {
         const missed = diffDays - 1;
-        if (stats.streakFreezes >= missed) {
+        if (settings.autoFreeze !== false && stats.streakFreezes >= missed) {
           stats.streakFreezes -= missed;
           stats.currentStreak = (stats.currentStreak || 0) + 1;
         } else {
@@ -180,7 +181,14 @@ const QuestStore = (() => {
   }
 
   async function getSettings() {
-    return (await window.electronAPI.storeGet('settings')) || { syncEnabled: true, yearlyGoal: 52 };
+    return (await window.electronAPI.storeGet('settings')) || { 
+      syncEnabled: true, 
+      yearlyGoal: 52,
+      theme: 'system',
+      firstDayOfWeek: 'monday',
+      enableSounds: true,
+      autoFreeze: true
+    };
   }
 
   async function updateSettings(updates) {
