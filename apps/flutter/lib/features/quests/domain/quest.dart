@@ -1,28 +1,23 @@
-import { Isar } from 'isar';
-import { Part } from 'isar';
+import 'package:isar/isar.dart';
 
-// Run `flutter pub run build_runner build` to generate this file
-// part 'quest.g.dart';
+part 'quest.g.dart';
 
-// @Collection()
-export class Quest {
-  // id = Isar.autoIncrement; // you can also use id = null to auto increment
+@collection
+class Quest {
+  Id id = Isar.autoIncrement;
 
-  // @Index(type: IndexType.value)
-  id?: number;
+  @Index(type: IndexType.value)
+  String? remoteId;
 
-  remoteId?: string; // String ID from backend
-
-  title?: string;
+  String? title;
   
-  description?: string;
+  String? description;
   
-  difficulty?: number;
+  int? difficulty;
   
-  category?: string;
+  String? category;
 
-  // @Index()
-  syncedAt?: Date;
+  DateTime? syncedAt;
   
-  updatedAt?: Date;
+  DateTime? updatedAt;
 }
