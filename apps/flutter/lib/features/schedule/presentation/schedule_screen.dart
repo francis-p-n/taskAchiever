@@ -1,33 +1,49 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_achiever/shared/widgets/section_header.dart';
+import 'package:life_achiever/features/schedule/data/schedule_repository.dart';
 
-class ScheduleScreen extends StatelessWidget {
+class ScheduleScreen extends ConsumerWidget {
   const ScheduleScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheduleData = ref.watch(todayScheduleProvider);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Schedule')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SectionHeader(title: 'Today'),
-            _buildTimelineItem('09:00 AM', 'Deep Work Session', Colors.purple),
-            _buildTimelineItem('10:30 AM', 'Sync Meeting', Colors.blue),
-            _buildTimelineItem('01:00 PM', 'Lunch Break', Colors.orange),
-            _buildTimelineItem('03:00 PM', 'Workout', Colors.green),
-            const SizedBox(height: 32),
-            Center(
-              child: ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.calendar_month),
-                label: const Text('Connect Google Calendar'),
-              ),
+      body: scheduleData.when(
+        data: (events) => _buildContent(context, events),
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(child: Text('Error: $err')),
+      ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context, List<dynamic> events) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionHeader(title: 'Today'),
+          if (events.isEmpty)
+            const Text('No events scheduled for today.')
+          else
+            ...events.map((event) => _buildTimelineItem(
+                  event['startTime'] ?? 'Unknown',
+                  event['title'] ?? 'Event',
+                  Colors.blue,
+                )),
+          const SizedBox(height: 32),
+          Center(
+            child: ElevatedButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.calendar_month),
+              label: const Text('Connect Google Calendar'),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
