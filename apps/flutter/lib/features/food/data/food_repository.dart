@@ -7,8 +7,13 @@ class FoodRepository {
   FoodRepository(this._dio);
 
   Future<List<dynamic>> fetchTodayFood() async {
-    final response = await _dio.get('/food/today');
-    return response.data as List<dynamic>;
+    // Local-first: the sync backend is optional, fall back when offline.
+    try {
+      final response = await _dio.get('/food/today');
+      return response.data as List<dynamic>;
+    } on DioException {
+      return const [];
+    }
   }
 }
 

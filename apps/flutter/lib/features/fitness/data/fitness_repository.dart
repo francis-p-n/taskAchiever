@@ -7,8 +7,13 @@ class FitnessRepository {
   FitnessRepository(this._dio);
 
   Future<Map<String, dynamic>> fetchDailyFitness() async {
-    final response = await _dio.get('/fitness/daily');
-    return response.data as Map<String, dynamic>;
+    // Local-first: the sync backend is optional, fall back when offline.
+    try {
+      final response = await _dio.get('/fitness/daily');
+      return response.data as Map<String, dynamic>;
+    } on DioException {
+      return const {'steps': 0, 'caloriesBurned': 0};
+    }
   }
 }
 

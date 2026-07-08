@@ -1,5 +1,6 @@
 // SyncEngine skeleton for Flutter
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'package:dio/dio.dart';
 
 class SyncEngine {
@@ -23,26 +24,30 @@ class SyncEngine {
         // await isar.writeTxn(() => isar.pendingOperations.clear());
       }
     } catch (e) {
-      print('Sync failed, will retry later: $e');
+      developer.log('Sync failed, will retry later: $e', name: 'SyncEngine');
     }
   }
 
-  Future<void> pullUpdates() async {
+  /// Returns true when the pull succeeded, false when the backend was
+  /// unreachable (the app is local-first, so this is a normal condition).
+  Future<bool> pullUpdates() async {
     // 1. Fetch last sync timestamp from local storage
     final lastSync = '2026-01-01T00:00:00Z'; // e.g. prefs.getString('lastSync')
 
     try {
-      final response = await dio.get('/api/sync/pull', queryParameters: {'since': lastSync});
-      
+      final response = await dio.get('/sync/pull', queryParameters: {'since': lastSync});
+
       if (response.statusCode == 200) {
-        final data = response.data;
-        // 2. Upsert fetched records (quests, stats) into local Isar DB
-        
+        // 2. Upsert fetched records (quests, stats) from response.data
+        //    into the local Isar DB
         // 3. Update last sync timestamp
-        // prefs.setString('lastSync', data['timestamp']);
+        // prefs.setString('lastSync', response.data['timestamp']);
+        return true;
       }
+      return false;
     } catch (e) {
-      print('Pull failed: $e');
+      developer.log('Pull failed: $e', name: 'SyncEngine');
+      return false;
     }
   }
 }

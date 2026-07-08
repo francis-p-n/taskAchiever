@@ -7,8 +7,13 @@ class ScheduleRepository {
   ScheduleRepository(this._dio);
 
   Future<List<dynamic>> fetchTodaySchedule() async {
-    final response = await _dio.get('/schedule/today');
-    return response.data as List<dynamic>;
+    // Local-first: the sync backend is optional, fall back when offline.
+    try {
+      final response = await _dio.get('/schedule/today');
+      return response.data as List<dynamic>;
+    } on DioException {
+      return const [];
+    }
   }
 }
 
