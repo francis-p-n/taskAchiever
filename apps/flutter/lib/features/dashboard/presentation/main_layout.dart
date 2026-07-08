@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:life_achiever/core/theme.dart';
+import 'package:life_achiever/features/player/application/player_notifier.dart';
 
-class MainLayout extends StatelessWidget {
+class MainLayout extends ConsumerWidget {
   final Widget child;
 
   const MainLayout({super.key, required this.child});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     // Determine layout based on screen width
     final isDesktop = MediaQuery.of(context).size.width > 800;
 
@@ -15,7 +18,7 @@ class MainLayout extends StatelessWidget {
       return Scaffold(
         body: Row(
           children: [
-            _buildSidebar(context),
+            _buildSidebar(context, ref),
             const VerticalDivider(thickness: 1, width: 1),
             Expanded(child: child),
           ],
@@ -29,35 +32,70 @@ class MainLayout extends StatelessWidget {
     );
   }
 
-  Widget _buildSidebar(BuildContext context) {
+  Widget _buildSidebar(BuildContext context, WidgetRef ref) {
+    final player = ref.watch(playerProvider);
+
     return NavigationRail(
       selectedIndex: _calculateSelectedIndex(context),
       onDestinationSelected: (int index) => _onItemTapped(index, context),
       labelType: NavigationRailLabelType.all,
-      leading: const Padding(
-        padding: EdgeInsets.only(bottom: 24.0, top: 16.0),
-        child: Icon(Icons.auto_awesome, size: 32, color: Colors.deepPurpleAccent),
+      backgroundColor: NotionColors.surface,
+      indicatorColor: NotionColors.surfaceHover,
+      selectedIconTheme:
+          const IconThemeData(color: NotionColors.textPrimary, size: 20),
+      selectedLabelTextStyle: const TextStyle(
+        color: NotionColors.textPrimary,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
+      unselectedIconTheme:
+          const IconThemeData(color: NotionColors.textFaint, size: 20),
+      unselectedLabelTextStyle:
+          const TextStyle(color: NotionColors.textFaint, fontSize: 12),
+      leading: Padding(
+        padding: const EdgeInsets.only(bottom: 20.0, top: 16.0),
+        child: Column(
+          children: [
+            const Text('🎮', style: TextStyle(fontSize: 22)),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: NotionColors.redBg,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                'LV ${player.level}',
+                style: const TextStyle(
+                  color: NotionColors.red,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
       destinations: const [
         NavigationRailDestination(
-          icon: Icon(Icons.dashboard_outlined),
-          selectedIcon: Icon(Icons.dashboard),
-          label: Text('Dashboard'),
+          icon: Icon(Icons.home_outlined),
+          selectedIcon: Icon(Icons.home),
+          label: Text('Home'),
         ),
         NavigationRailDestination(
-          icon: Icon(Icons.favorite_outline),
-          selectedIcon: Icon(Icons.favorite),
+          icon: Icon(Icons.fitness_center_outlined),
+          selectedIcon: Icon(Icons.fitness_center),
           label: Text('Fitness'),
         ),
         NavigationRailDestination(
           icon: Icon(Icons.restaurant_menu_outlined),
           selectedIcon: Icon(Icons.restaurant_menu),
-          label: Text('Nutrition'),
+          label: Text('Food'),
         ),
         NavigationRailDestination(
           icon: Icon(Icons.account_balance_wallet_outlined),
           selectedIcon: Icon(Icons.account_balance_wallet),
-          label: Text('Finance'),
+          label: Text('Spending'),
         ),
         NavigationRailDestination(
           icon: Icon(Icons.calendar_month_outlined),
@@ -78,17 +116,20 @@ class MainLayout extends StatelessWidget {
       currentIndex: _calculateSelectedIndex(context),
       onTap: (int index) => _onItemTapped(index, context),
       type: BottomNavigationBarType.fixed, // Needed for >3 items
-      selectedItemColor: Theme.of(context).colorScheme.primary,
-      unselectedItemColor: Colors.grey,
+      backgroundColor: NotionColors.surface,
+      selectedItemColor: NotionColors.textPrimary,
+      unselectedItemColor: NotionColors.textFaint,
+      selectedFontSize: 11,
+      unselectedFontSize: 11,
       items: const [
         BottomNavigationBarItem(
-          icon: Icon(Icons.dashboard_outlined),
-          activeIcon: Icon(Icons.dashboard),
+          icon: Icon(Icons.home_outlined),
+          activeIcon: Icon(Icons.home),
           label: 'Home',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.favorite_outline),
-          activeIcon: Icon(Icons.favorite),
+          icon: Icon(Icons.fitness_center_outlined),
+          activeIcon: Icon(Icons.fitness_center),
           label: 'Fit',
         ),
         BottomNavigationBarItem(
@@ -122,7 +163,7 @@ class MainLayout extends StatelessWidget {
     if (location.startsWith('/spending')) return 3;
     if (location.startsWith('/schedule')) return 4;
     if (location.startsWith('/quests')) return 5;
-    return 0; // Default to Dashboard
+    return 0; // Default to Home
   }
 
   void _onItemTapped(int index, BuildContext context) {
