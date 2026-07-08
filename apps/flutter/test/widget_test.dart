@@ -1,30 +1,44 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:life_achiever/main.dart';
+import 'package:life_achiever/features/player/domain/player.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('Player leveling', () {
+    test('xp curve grows with level', () {
+      expect(Player.xpForLevel(1), 100);
+      expect(Player.xpForLevel(2), 150);
+      expect(Player.xpForLevel(10), 550);
+    });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    test('total xp accumulates prior levels', () {
+      const player = Player(level: 3, xp: 20);
+      // levels 1 (100) + 2 (150) + current 20
+      expect(player.totalXp, 270);
+    });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    test('serialization round-trips', () {
+      const player = Player(
+        name: 'Ash',
+        job: 'Mage',
+        level: 12,
+        xp: 40,
+        xpToday: 15,
+        tasksToday: 3,
+        energies: {Energy.hp: 6, Energy.mood: 9},
+        areas: {Area.physical: 803, Area.intel: 393},
+      );
+      final restored = Player.fromJson(player.toJson());
+      expect(restored.name, 'Ash');
+      expect(restored.job, 'Mage');
+      expect(restored.level, 12);
+      expect(restored.xp, 40);
+      expect(restored.xpToday, 15);
+      expect(restored.tasksToday, 3);
+      expect(restored.energyOf(Energy.hp), 6);
+      expect(restored.energyOf(Energy.mood), 9);
+      expect(restored.energyOf(Energy.focus), 8); // default
+      expect(restored.areaOf(Area.physical), 803);
+      expect(restored.areaOf(Area.care), 500); // default
+    });
   });
 }

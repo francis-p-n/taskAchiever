@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_achiever/core/router.dart';
+import 'package:life_achiever/core/theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,11 +16,7 @@ class TaskAchieverApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'TaskAchiever',
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        colorSchemeSeed: Colors.deepPurple,
-        useMaterial3: true,
-      ),
+      theme: buildGameTheme(),
       routerConfig: goRouter,
     );
   }
