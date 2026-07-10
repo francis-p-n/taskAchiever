@@ -88,6 +88,41 @@ export class QuestService {
     return updatedQuest;
   }
 
+  static async uncompleteQuest(userId: number, questId: string) {
+    const quest = await db.query.quests.findFirst({
+      where: and(eq(quests.id, questId), eq(quests.userId, userId))
+    });
+
+    if (!quest) throw new Error('Quest not found');
+    if (!quest.completedAt) return quest; // idempotent: nothing to revert
+
+    const [updatedQuest] = await db.update(quests).set({
+      completedAt: null,
+      fulfillment: null
+    }).where(eq(quests.id, questId)).returning();
+
+    // Take back the XP and completion count. Streak is left alone — it
+    // can't be reliably reconstructed after the fact.
+    await db.transaction(async (tx) => {
+      const [stats] = await tx
+        .select()
+        .from(userStats)
+        .where(eq(userStats.userId, userId))
+        .for('update');
+      if (!stats) return;
+
+      const xpEarned = (quest.difficulty || 1) * 10;
+      await tx.update(userStats).set({
+        totalCompleted: Math.max(0, (stats.totalCompleted || 0) - 1),
+        experiencePoints: Math.max(0, (stats.experiencePoints || 0) - xpEarned),
+      }).where(eq(userStats.userId, userId));
+    });
+
+    await cache.del(`cache:stats:${userId}`);
+    await cache.del(`quests:${userId}`);
+    return updatedQuest;
+  }
+
   private static async updateUserStats(userId: number, difficulty: number) {
     // Row-locked transaction: concurrent completions (the client fires
     // these without awaiting) must not lose XP to read-modify-write races.

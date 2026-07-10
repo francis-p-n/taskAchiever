@@ -85,6 +85,33 @@ class PlayerNotifier extends StateNotifier<Player> {
     return XpGainResult(xpGained: amount, leveledUp: leveledUp, newLevel: level);
   }
 
+  /// Takes back previously-awarded XP (quest undo), handling level-downs.
+  void revertXp(int amount, {Area? area, bool countTask = true}) {
+    var level = state.level;
+    var xp = state.xp - amount;
+
+    while (xp < 0 && level > 1) {
+      level--;
+      xp += Player.xpForLevel(level);
+    }
+    if (xp < 0) xp = 0;
+
+    final areas = Map<Area, int>.from(state.areas);
+    if (area != null) {
+      areas[area] = (areas[area] ?? 500) - amount;
+    }
+
+    state = state.copyWith(
+      level: level,
+      xp: xp,
+      xpToday: (state.xpToday - amount).clamp(0, 1 << 31),
+      tasksToday:
+          (state.tasksToday - (countTask ? 1 : 0)).clamp(0, 1 << 31),
+      areas: areas,
+    );
+    _save();
+  }
+
   /// Energy menu actions: "Food +1 HP", "Doomscroll -1 Focus", etc.
   void adjustEnergy(Energy kind, int delta) {
     final energies = Map<Energy, int>.from(state.energies);

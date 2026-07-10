@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:life_os/core/theme.dart';
 import 'package:life_os/features/player/application/player_notifier.dart';
 import 'package:life_os/features/player/domain/player.dart';
+import 'package:life_os/features/quests/application/quest_actions.dart';
+import 'package:life_os/features/quests/application/quests_notifier.dart';
 import 'package:life_os/shared/widgets/block_bar.dart';
 import 'package:life_os/shared/widgets/integration_card.dart';
 import 'package:life_os/shared/widgets/notion_card.dart';
@@ -475,29 +477,47 @@ class _AreaRadarChart extends StatelessWidget {
   }
 }
 
-/// Compact quest cards mirroring the "Watch Anime / Practice Session" row.
+/// The first few open quests for today, driven by the same provider as the
+/// Quests screen so completing one here removes it everywhere.
 class _TodaysQuests extends ConsumerWidget {
-  static const _quests = [
-    ('Watch Anime', Area.psyche, 5),
-    ('Practice Session', Area.intel, 10),
-  ];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final open = ref
+        .watch(questsProvider)
+        .where((q) => !q.completed)
+        .take(3)
+        .toList();
+
+    if (open.isEmpty) {
+      return const NotionCard(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 16),
+          child: Center(
+            child: Text('All quests done for today 🎉',
+                style:
+                    TextStyle(fontSize: 12, color: NotionColors.textFaint)),
+          ),
+        ),
+      );
+    }
+
     return Row(
       children: [
-        for (final (title, area, xp) in _quests) ...[
+        for (var i = 0; i < open.length; i++) ...[
+          if (i > 0) const SizedBox(width: 12),
           Expanded(
             child: NotionCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
+                  Text(open[i].title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                           fontSize: 13, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
                   NotionTag(
-                    text: '+$xp XP',
+                    text: '+${open[i].xp} XP',
                     color: NotionColors.green,
                     bgColor: NotionColors.greenBg,
                   ),
@@ -505,14 +525,7 @@ class _TodaysQuests extends ConsumerWidget {
                   SizedBox(
                     height: 28,
                     child: OutlinedButton(
-                      onPressed: () {
-                        ref
-                            .read(playerProvider.notifier)
-                            .gainXp(xp, area: area);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('$title complete  +$xp XP')),
-                        );
-                      },
+                      onPressed: () => completeQuest(context, ref, open[i]),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: NotionColors.textMuted,
                         side: const BorderSide(color: NotionColors.border),
@@ -527,20 +540,7 @@ class _TodaysQuests extends ConsumerWidget {
               ),
             ),
           ),
-          const SizedBox(width: 12),
         ],
-        const Expanded(
-          child: NotionCard(
-            child: SizedBox(
-              height: 88,
-              child: Center(
-                child: Text('+ New page',
-                    style: TextStyle(
-                        fontSize: 12, color: NotionColors.textFaint)),
-              ),
-            ),
-          ),
-        ),
       ],
     );
   }

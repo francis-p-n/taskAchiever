@@ -88,6 +88,16 @@ class QuestsRepository {
       return false;
     }
   }
+
+  /// Reverts a completion on the server (takes back the XP it awarded).
+  Future<bool> uncompleteQuest(String id) async {
+    try {
+      await _dio.post('/quests/$id/uncomplete');
+      return true;
+    } on DioException {
+      return false;
+    }
+  }
 }
 
 final questsRepositoryProvider = Provider<QuestsRepository>((ref) {

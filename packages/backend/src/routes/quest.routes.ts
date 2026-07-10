@@ -35,4 +35,16 @@ export default async function questRoutes(fastify: FastifyInstance) {
       return reply.status(404).send({ error: err.message });
     }
   });
+
+  fastify.post('/api/quests/:id/uncomplete', async (request, reply) => {
+    const user = request.user as { id: number };
+    const { id } = request.params as { id: string };
+
+    try {
+      const quest = await QuestService.uncompleteQuest(user.id, id);
+      return reply.send(quest);
+    } catch (err: any) {
+      return reply.status(404).send({ error: err.message });
+    }
+  });
 }
