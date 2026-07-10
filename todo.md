@@ -22,10 +22,23 @@ This file tracks the completed milestones, active tasks, and planned enhancement
 
 ## 🛠️ Active Development / Immediate Backlog
 
+- [ ] **Run pending DB migration:** `cd packages/backend && npx tsx scripts/migrate-2026-07-features.ts` (quest recurrence, Strava columns, activities table).
+- [ ] **Strava app credentials:** create an API app at strava.com/settings/api and set `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` in `packages/backend/.env`.
 - [ ] **Flutter Isar Schema:** Replicate the Drizzle models inside local Isar NoSQL collections for the client.
 - [ ] **Dart SyncEngine:** Build the background polling service that drains local Isar queues into the Fastify backend.
-- [ ] **Flutter Quests UI:** Build the gamified task management UI in Flutter using Riverpod.
 - [ ] **Data Migration Script:** Create a CLI script to ingest `sidequest-data.json` from the legacy v1 app into the v2 PostgreSQL database.
+
+### Completed 2026-07-10 (feature batch)
+- [x] Completed quests leave the active tabs; Undo on cards and snackbars (XP reverted locally and server-side).
+- [x] Recurring quests (daily/weekly) with respawn-on-complete and a New Quest dialog.
+- [x] Energy Menu removed; Reset All Energy refills bars to full.
+- [x] Settings page (player profile + integrations) and Status page (backend health, stats, integration status).
+- [x] Player ID editable from dashboard and Settings.
+- [x] Todoist side quests live in the Quests screen; project-by-name import ("Sidequest"); AI-generated actionable steps on imported tasks.
+- [x] Dashboard "Up Next" uses real synced calendar events.
+- [x] Meal-photo analysis: Claude vision estimates calories/macros into the log-meal form.
+- [x] Strava OAuth + activity import with duplicate-workout removal.
+- [x] Health Connect route for Nothing X / CMF Watch (Android).
 
 ---
 

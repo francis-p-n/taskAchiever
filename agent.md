@@ -53,6 +53,17 @@ Welcome! This file serves as the single source of truth and onboarding context f
 
 ## 📝 Changelog / Recent Edits
 
+### 2026-07-10 (Agent: Claude Code)
+- **Quest lifecycle:** completions move cards to the Completed tab with an Undo action; new `POST /api/quests/:id/uncomplete` reverts XP server-side; dashboard "Today's Quests" and "Up Next" now use live data.
+- **Recurring quests:** `recurrence` column ('daily'/'weekly'); completing spawns the next occurrence; New Quest dialog in the Quests screen.
+- **Energy:** removed the Energy Menu board; Reset All Energy refills to max.
+- **New pages:** `/settings` (player profile + integration connections) and `/status` (backend health, lifetime stats, integration status), both in the nav.
+- **Todoist:** side quests render as real cards; connect accepts a project *name* (e.g. "Sidequest"); imported tasks get AI-generated actionable steps (`quest_steps`).
+- **Food:** `POST /api/food/analyze` (Claude vision) estimates calories/macros from a photo; log-meal sheet has a photo button that auto-fills the form.
+- **Strava:** OAuth connect (`strava.routes.ts` public callback + signed state), activity import into the new `activities` table, duplicate-workout removal (±45 min window, Strava wins).
+- **Health Connect:** Android route for Nothing X / CMF Watch — `health_sync.dart` pushes daily totals (`POST /api/fitness` upsert) and workouts (`POST /api/fitness/activity` with dedupe).
+- **⚠️ Pending:** run `npx tsx scripts/migrate-2026-07-features.ts` in `packages/backend` before starting the new backend (adds recurrence/Strava columns and the activities table).
+
 ### 2026-06-22 (Agent: Antigravity)
 - **Massive Architecture Rewrite:** Moved legacy Electron app to `/legacy`.
 - Scaffolded Flutter monorepo in `/apps/flutter` and Fastify backend in `/packages/backend`.
