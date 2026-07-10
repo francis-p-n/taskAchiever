@@ -258,8 +258,15 @@ class _LeftColumn extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
         TextButton.icon(
-          onPressed: () =>
-              ref.read(playerProvider.notifier).resetEnergies(),
+          onPressed: () {
+            ref.read(playerProvider.notifier).resetEnergies();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('All energy bars refilled.'),
+                duration: Duration(milliseconds: 1200),
+              ),
+            );
+          },
           style: TextButton.styleFrom(
             foregroundColor: NotionColors.textMuted,
             alignment: Alignment.centerLeft,
@@ -390,10 +397,6 @@ class _CenterColumn extends ConsumerWidget {
           ),
         ),
         _TodaysQuests(),
-        const SizedBox(height: 16),
-        const NotionSectionTitle(
-            icon: Icons.battery_charging_full_outlined, title: 'Energy Menu'),
-        const _EnergyMenu(),
         const SizedBox(height: 16),
         const NotionSectionTitle(
             icon: Icons.trending_up_outlined, title: 'Monthly Performance'),
@@ -542,114 +545,6 @@ class _TodaysQuests extends ConsumerWidget {
           ),
         ],
       ],
-    );
-  }
-}
-
-/// The pill-button board: actions that spend or restore energies, grouped
-/// into one labeled column per energy like the template.
-class _EnergyMenu extends ConsumerWidget {
-  const _EnergyMenu();
-
-  static const _actions = <Energy, List<(IconData, String, int)>>{
-    Energy.hp: [
-      (Icons.ramen_dining_outlined, 'Food +1', 1),
-      (Icons.bed_outlined, 'Nap +2', 2),
-      (Icons.nightlight_outlined, 'Sleep +4', 4),
-      (Icons.pool_outlined, 'Swim +3', 3),
-    ],
-    Energy.mood: [
-      (Icons.mic_none_outlined, 'Sing +1', 1),
-      (Icons.group_outlined, 'Friends +2', 2),
-      (Icons.movie_outlined, 'Watch Edits +1', 1),
-      (Icons.directions_walk_outlined, 'Walk +1', 1),
-    ],
-    Energy.focus: [
-      (Icons.coffee_outlined, 'Break +1', 1),
-      (Icons.menu_book_outlined, 'Study -2', -2),
-      (Icons.smartphone_outlined, 'Doomscroll -1', -1),
-    ],
-    Energy.motivation: [
-      (Icons.spa_outlined, 'Affirmation +1', 1),
-      (Icons.school_outlined, 'Mentors +1', 1),
-      (Icons.smartphone_outlined, 'Doomscroll -1', -1),
-    ],
-  };
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return NotionCard(
-      child: Wrap(
-        spacing: 16,
-        runSpacing: 16,
-        children: [
-          for (final entry in _actions.entries)
-            SizedBox(
-              width: 168,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(entry.key.icon, size: 13, color: entry.key.color),
-                      const SizedBox(width: 6),
-                      Text(
-                        entry.key.label,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: entry.key.color,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  for (final (icon, label, delta) in entry.value)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(4),
-                        onTap: () {
-                          ref
-                              .read(playerProvider.notifier)
-                              .adjustEnergy(entry.key, delta);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                  '${entry.key.label} ${delta > 0 ? '+' : ''}$delta'),
-                              duration: const Duration(milliseconds: 900),
-                            ),
-                          );
-                        },
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              icon,
-                              size: 13,
-                              color: delta >= 0
-                                  ? entry.key.color
-                                  : NotionColors.red,
-                            ),
-                            const SizedBox(width: 6),
-                            NotionTag(
-                              text: label,
-                              color: delta >= 0
-                                  ? entry.key.color
-                                  : NotionColors.red,
-                              bgColor: delta >= 0
-                                  ? entry.key.bgColor
-                                  : NotionColors.redBg,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-        ],
-      ),
     );
   }
 }

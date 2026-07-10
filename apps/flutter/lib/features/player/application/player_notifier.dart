@@ -121,9 +121,10 @@ class PlayerNotifier extends StateNotifier<Player> {
     _save();
   }
 
+  /// Refills every energy bar to full.
   void resetEnergies() {
     state = state.copyWith(
-      energies: {for (final e in Energy.values) e: 8},
+      energies: {for (final e in Energy.values) e: maxEnergy},
     );
     _save();
   }
