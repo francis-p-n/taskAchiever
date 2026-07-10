@@ -122,6 +122,16 @@ class MainLayout extends ConsumerWidget {
           selectedIcon: Icon(Icons.list_alt),
           label: Text('Quests'),
         ),
+        NavigationRailDestination(
+          icon: Icon(Icons.monitor_heart_outlined),
+          selectedIcon: Icon(Icons.monitor_heart),
+          label: Text('Status'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.settings_outlined),
+          selectedIcon: Icon(Icons.settings),
+          label: Text('Settings'),
+        ),
       ],
     );
   }
@@ -167,6 +177,16 @@ class MainLayout extends ConsumerWidget {
           activeIcon: Icon(Icons.list_alt),
           label: 'Quests',
         ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.monitor_heart_outlined),
+          activeIcon: Icon(Icons.monitor_heart),
+          label: 'Status',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.settings_outlined),
+          activeIcon: Icon(Icons.settings),
+          label: 'Config',
+        ),
       ],
     );
   }
@@ -178,6 +198,8 @@ class MainLayout extends ConsumerWidget {
     if (location.startsWith('/spending')) return 3;
     if (location.startsWith('/schedule')) return 4;
     if (location.startsWith('/quests')) return 5;
+    if (location.startsWith('/status')) return 6;
+    if (location.startsWith('/settings')) return 7;
     return 0; // Default to Home
   }
 
@@ -200,6 +222,12 @@ class MainLayout extends ConsumerWidget {
         break;
       case 5:
         context.go('/quests');
+        break;
+      case 6:
+        context.go('/status');
+        break;
+      case 7:
+        context.go('/settings');
         break;
     }
   }

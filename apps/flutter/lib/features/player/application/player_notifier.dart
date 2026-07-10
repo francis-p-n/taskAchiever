@@ -133,6 +133,12 @@ class PlayerNotifier extends StateNotifier<Player> {
     state = state.copyWith(name: name);
     _save();
   }
+
+  /// Updates the Player ID card fields (name / job / age).
+  void updateProfile({String? name, String? job, int? age}) {
+    state = state.copyWith(name: name, job: job, age: age);
+    _save();
+  }
 }
 
 final playerProvider = StateNotifierProvider<PlayerNotifier, Player>(

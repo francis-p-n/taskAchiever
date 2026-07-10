@@ -7,6 +7,8 @@ import 'package:life_os/features/fitness/presentation/fitness_screen.dart';
 import 'package:life_os/features/food/presentation/food_screen.dart';
 import 'package:life_os/features/spending/presentation/spending_screen.dart';
 import 'package:life_os/features/schedule/presentation/schedule_screen.dart';
+import 'package:life_os/features/settings/presentation/settings_screen.dart';
+import 'package:life_os/features/status/presentation/status_screen.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -44,6 +46,14 @@ final goRouter = GoRouter(
         GoRoute(
           path: '/quests',
           builder: (context, state) => const QuestsScreen(),
+        ),
+        GoRoute(
+          path: '/status',
+          builder: (context, state) => const StatusScreen(),
+        ),
+        GoRoute(
+          path: '/settings',
+          builder: (context, state) => const SettingsScreen(),
         ),
       ],
     ),

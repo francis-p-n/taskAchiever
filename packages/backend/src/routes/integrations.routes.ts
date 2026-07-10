@@ -46,17 +46,30 @@ export default async function integrationsRoutes(fastify: FastifyInstance) {
 
   fastify.post('/api/integrations/todoist', async (request, reply) => {
     const user = request.user as { id: number };
-    const { apiKey, projectId } = request.body as { apiKey?: string; projectId?: string };
+    const { apiKey, projectId, projectName } = request.body as {
+      apiKey?: string;
+      projectId?: string;
+      projectName?: string;
+    };
     if (!apiKey) return reply.status(400).send({ error: 'apiKey is required' });
 
     if (!(await TodoistService.validateKey(apiKey))) {
       return reply.status(401).send({ error: 'Invalid Todoist API token' });
     }
 
+    // A project can be named (e.g. "Sidequest") instead of passing an id.
+    let resolvedProjectId = projectId ?? null;
+    if (!resolvedProjectId && projectName) {
+      resolvedProjectId = await TodoistService.findProjectByName(apiKey, projectName);
+      if (!resolvedProjectId) {
+        return reply.status(404).send({ error: `No Todoist project named "${projectName}"` });
+      }
+    }
+
     await getOrCreateSettings(user.id);
     await db
       .update(userSettings)
-      .set({ todoistApiKey: apiKey, todoistProjectId: projectId ?? null, updatedAt: new Date() })
+      .set({ todoistApiKey: apiKey, todoistProjectId: resolvedProjectId, updatedAt: new Date() })
       .where(eq(userSettings.userId, user.id));
 
     const sync = await TodoistService.syncUser(user.id);

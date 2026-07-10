@@ -67,9 +67,13 @@ class IntegrationsRepository {
     }
   }
 
-  Future<IntegrationResult> connectTodoist(String apiKey, {String? projectId}) =>
+  Future<IntegrationResult> connectTodoist(String apiKey,
+          {String? projectName}) =>
       _action(() => _dio.post('/integrations/todoist',
-          data: {'apiKey': apiKey, if (projectId != null) 'projectId': projectId},
+          data: {
+            'apiKey': apiKey,
+            if (projectName != null) 'projectName': projectName,
+          },
           options: _longCall));
 
   Future<IntegrationResult> syncTodoist() =>

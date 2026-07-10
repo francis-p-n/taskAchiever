@@ -7,6 +7,7 @@ import 'package:life_os/features/player/application/player_notifier.dart';
 import 'package:life_os/features/player/domain/player.dart';
 import 'package:life_os/features/quests/application/quest_actions.dart';
 import 'package:life_os/features/quests/application/quests_notifier.dart';
+import 'package:life_os/features/settings/presentation/edit_player_dialog.dart';
 import 'package:life_os/shared/widgets/block_bar.dart';
 import 'package:life_os/shared/widgets/integration_card.dart';
 import 'package:life_os/shared/widgets/notion_card.dart';
@@ -640,10 +641,22 @@ class _RightColumn extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Text(
-                    player.name,
-                    style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w700),
+                  Expanded(
+                    child: Text(
+                      player.name,
+                      style: const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Update Player ID',
+                    iconSize: 15,
+                    color: NotionColors.textMuted,
+                    onPressed: () => showDialog(
+                      context: context,
+                      builder: (_) => const EditPlayerDialog(),
+                    ),
+                    icon: const Icon(Icons.edit_outlined),
                   ),
                 ],
               ),
@@ -693,13 +706,13 @@ class _RightColumn extends StatelessWidget {
               SizedBox(
                 height: 30,
                 child: OutlinedButton.icon(
-                  onPressed: () {},
+                  onPressed: () => context.go('/status'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: NotionColors.textPrimary,
                     side: const BorderSide(color: NotionColors.border),
                   ),
-                  icon: const Icon(Icons.save_outlined, size: 14),
-                  label: const Text('Log Status',
+                  icon: const Icon(Icons.monitor_heart_outlined, size: 14),
+                  label: const Text('View Status',
                       style: TextStyle(fontSize: 12)),
                 ),
               ),

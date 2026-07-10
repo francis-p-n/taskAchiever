@@ -41,6 +41,33 @@ export class TodoistService {
     }
   }
 
+  /** Resolves a project id from its (case-insensitive) name, e.g. "Sidequest". */
+  static async findProjectByName(apiKey: string, name: string): Promise<string | null> {
+    const headers = { 'Authorization': `Bearer ${apiKey}` };
+    let cursor: string | null = null;
+    const wanted = name.trim().toLowerCase();
+
+    do {
+      const params = new URLSearchParams({ limit: '200' });
+      if (cursor) params.set('cursor', cursor);
+      const res = await fetch(`${TODOIST_BASE}/projects?${params.toString()}`, {
+        headers,
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) return null;
+
+      const page = (await res.json()) as
+        | Array<{ id: string | number; name: string }>
+        | { results: Array<{ id: string | number; name: string }>; next_cursor?: string | null };
+      const projects = Array.isArray(page) ? page : page.results || [];
+      const match = projects.find((p) => p.name.trim().toLowerCase() === wanted);
+      if (match) return String(match.id);
+      cursor = Array.isArray(page) ? null : page.next_cursor || null;
+    } while (cursor);
+
+    return null;
+  }
+
   static async syncUser(userId: number): Promise<SyncResult> {
     const settings = await db.query.userSettings.findFirst({ where: eq(userSettings.userId, userId) });
     if (!settings || !settings.syncEnabled || !settings.todoistApiKey) {
