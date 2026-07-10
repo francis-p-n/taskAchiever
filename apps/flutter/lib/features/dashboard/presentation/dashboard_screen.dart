@@ -7,6 +7,7 @@ import 'package:life_os/features/player/application/player_notifier.dart';
 import 'package:life_os/features/player/domain/player.dart';
 import 'package:life_os/features/quests/application/quest_actions.dart';
 import 'package:life_os/features/quests/application/quests_notifier.dart';
+import 'package:life_os/features/schedule/data/schedule_repository.dart';
 import 'package:life_os/features/settings/presentation/edit_player_dialog.dart';
 import 'package:life_os/shared/widgets/block_bar.dart';
 import 'package:life_os/shared/widgets/integration_card.dart';
@@ -278,41 +279,68 @@ class _LeftColumn extends ConsumerWidget {
         ),
         const SizedBox(height: 8),
         const NotionSectionTitle(icon: Icons.event_outlined, title: 'Up Next'),
-        NotionCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Opacity(
-                opacity: 0.55,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    IntegrationPreviewRow(
-                      leading: '10:00 AM',
-                      title: 'Team Meeting',
-                    ),
-                    IntegrationPreviewRow(
-                      leading: '6:30 PM',
-                      title: 'Gym — Push Day',
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 6),
-              InkWell(
-                onTap: () => context.go('/schedule'),
-                child: const Text(
-                  'via Google Calendar — connect in Schedule →',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: NotionColors.textFaint,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        const _UpNext(),
       ],
+    );
+  }
+}
+
+/// Real upcoming events from the schedule (synced Google Calendar events and
+/// manual entries). Falls back to a connect hint when there's nothing today.
+class _UpNext extends ConsumerWidget {
+  const _UpNext();
+
+  static String _formatTime(DateTime t) {
+    final local = t.toLocal();
+    final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '$hour:$minute ${local.hour < 12 ? 'AM' : 'PM'}';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final events = ref.watch(todayScheduleProvider).valueOrNull ?? const [];
+    final now = DateTime.now();
+    final upcoming = events
+        .where((e) => (e.endTime ?? e.startTime).isAfter(now))
+        .take(4)
+        .toList();
+
+    return NotionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (upcoming.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 4),
+              child: Text(
+                'Nothing else scheduled today.',
+                style:
+                    TextStyle(fontSize: 12, color: NotionColors.textMuted),
+              ),
+            )
+          else
+            for (final event in upcoming)
+              IntegrationPreviewRow(
+                leading: _formatTime(event.startTime),
+                title: event.title,
+                trailingText: event.isGoogleEvent ? 'Cal' : null,
+                trailingColor: NotionColors.blue,
+                trailingBg: NotionColors.blueBg,
+              ),
+          const SizedBox(height: 6),
+          InkWell(
+            onTap: () => context.go('/schedule'),
+            child: const Text(
+              'Open Schedule →',
+              style: TextStyle(
+                fontSize: 11,
+                color: NotionColors.textFaint,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
