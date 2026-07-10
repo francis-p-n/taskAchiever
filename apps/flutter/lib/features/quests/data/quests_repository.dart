@@ -11,6 +11,7 @@ class QuestDto {
   final DateTime? dueDate;
   final DateTime? completedAt;
   final String? recurrence; // null | 'daily' | 'weekly'
+  final List<String> steps; // actionable breakdown (AI-generated for imports)
 
   QuestDto({
     required this.id,
@@ -20,6 +21,7 @@ class QuestDto {
     this.dueDate,
     this.completedAt,
     this.recurrence,
+    this.steps = const [],
   });
 
   factory QuestDto.fromJson(Map<String, dynamic> json) => QuestDto(
@@ -31,6 +33,12 @@ class QuestDto {
         completedAt:
             json['completedAt'] != null ? DateTime.tryParse(json['completedAt'] as String) : null,
         recurrence: json['recurrence'] as String?,
+        steps: [
+          if (json['steps'] is List)
+            for (final step in json['steps'] as List)
+              if (step is Map<String, dynamic> && step['text'] != null)
+                step['text'].toString(),
+        ],
       );
 
   int get xp => difficulty * 10;

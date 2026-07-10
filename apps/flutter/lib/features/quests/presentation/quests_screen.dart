@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lottie/lottie.dart';
+import 'package:life_os/core/data/integrations_repository.dart';
+import 'package:life_os/core/flows/integration_flows.dart';
 import 'package:life_os/core/providers.dart';
 import 'package:life_os/core/theme.dart';
 import 'package:life_os/features/player/domain/player.dart';
@@ -21,6 +23,8 @@ class QuestsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final quests = ref.watch(questsProvider);
     final tab = ref.watch(_tabProvider);
+    final todoist =
+        ref.watch(integrationsStatusProvider).valueOrNull?.todoist;
 
     final main = quests.where((q) => !q.isSideQuest).toList();
     final side = quests.where((q) => q.isSideQuest).toList();
@@ -135,8 +139,20 @@ class QuestsScreen extends ConsumerWidget {
                 },
               ),
             const SizedBox(height: 24),
-            const NotionSectionTitle(
-                icon: Icons.extension_outlined, title: 'Side Quests'),
+            NotionSectionTitle(
+              icon: Icons.extension_outlined,
+              title: 'Side Quests',
+              trailing: (todoist?.connected ?? false)
+                  ? TextButton.icon(
+                      onPressed: () => syncTodoistFlow(context, ref),
+                      style: TextButton.styleFrom(
+                          foregroundColor: NotionColors.textMuted),
+                      icon: const Icon(Icons.sync, size: 14),
+                      label: const Text('Sync Todoist',
+                          style: TextStyle(fontSize: 12)),
+                    )
+                  : null,
+            ),
             if (side.isNotEmpty) ...[
               GridView.builder(
                 shrinkWrap: true,
@@ -159,13 +175,26 @@ class QuestsScreen extends ConsumerWidget {
                 },
               ),
               const SizedBox(height: 12),
-            ] else
-              const IntegrationCard(
+            ] else if (todoist?.connected ?? false)
+              const NotionCard(
+                padding: EdgeInsets.all(20),
+                child: Center(
+                  child: Text(
+                    'No open side quests — add tasks to your Todoist project '
+                    'and hit Sync.',
+                    style: TextStyle(
+                        fontSize: 12, color: NotionColors.textFaint),
+                  ),
+                ),
+              )
+            else
+              IntegrationCard(
                 icon: Icons.check_circle_outline,
                 name: 'Todoist',
                 description:
                     'Pull your Todoist tasks in as side quests — complete them to earn bonus XP.',
-                preview: [
+                onConnect: () => connectTodoistFlow(context, ref),
+                preview: const [
                   IntegrationPreviewRow(
                     leading: 'Today',
                     title: 'Reply to landlord email',
@@ -486,6 +515,21 @@ class QuestCard extends StatelessWidget {
                       text: quest.recurrence == 'daily' ? 'Daily' : 'Weekly',
                       color: NotionColors.blue,
                       bgColor: NotionColors.blueBg,
+                    ),
+                  ],
+                  if (quest.steps.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    Tooltip(
+                      message: quest.steps
+                          .asMap()
+                          .entries
+                          .map((e) => '${e.key + 1}. ${e.value}')
+                          .join('\n'),
+                      child: NotionTag(
+                        text: '${quest.steps.length} steps',
+                        color: NotionColors.orange,
+                        bgColor: NotionColors.orangeBg,
+                      ),
                     ),
                   ],
                 ],

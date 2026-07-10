@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_os/core/data/integrations_repository.dart';
+import 'package:life_os/core/flows/integration_flows.dart';
 import 'package:life_os/core/theme.dart';
 import 'package:life_os/features/player/application/player_notifier.dart';
 import 'package:life_os/features/quests/data/quests_repository.dart';
 import 'package:life_os/features/settings/presentation/edit_player_dialog.dart';
-import 'package:life_os/shared/widgets/connect_dialog.dart';
 import 'package:life_os/shared/widgets/integration_card.dart';
 import 'package:life_os/shared/widgets/metric_callout.dart';
 import 'package:life_os/shared/widgets/notion_card.dart';
@@ -13,62 +13,13 @@ import 'package:life_os/shared/widgets/notion_card.dart';
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
-  void _refresh(WidgetRef ref) {
-    ref.invalidate(integrationsStatusProvider);
-    ref.invalidate(remoteQuestsProvider);
-  }
-
   void _showResult(
       BuildContext context, WidgetRef ref, IntegrationResult result) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(result.message)),
     );
-    _refresh(ref);
-  }
-
-  Future<void> _connectTodoist(BuildContext context, WidgetRef ref) async {
-    final apiKey = await showConnectDialog(
-      context,
-      title: 'Connect Todoist',
-      fieldLabel: 'API token',
-      obscure: true,
-      helpText: 'Todoist → Settings → Integrations → Developer → copy your '
-          'API token. Tasks in your "Sidequest" project become side quests '
-          'automatically; leave the project blank to import everything.',
-    );
-    if (apiKey == null || !context.mounted) return;
-
-    final project = await showConnectDialog(
-      context,
-      title: 'Which project?',
-      fieldLabel: 'Project name (optional — Cancel for all)',
-      helpText: 'Type the name of the Todoist project to import from, e.g. '
-          '"Sidequest". Cancel to import from every project.',
-    );
-    if (!context.mounted) return;
-
-    final result = await ref
-        .read(integrationsRepositoryProvider)
-        .connectTodoist(apiKey, projectName: project);
-    if (!context.mounted) return;
-    _showResult(context, ref, result);
-  }
-
-  Future<void> _connectCalendar(BuildContext context, WidgetRef ref) async {
-    final url = await showConnectDialog(
-      context,
-      title: 'Connect your calendar',
-      fieldLabel: 'Secret iCal URL',
-      helpText:
-          'Google Calendar → Settings → your calendar → Integrate calendar → '
-          'copy the "Secret address in iCal format" URL. Works with any iCal '
-          'feed (Outlook, Apple).',
-    );
-    if (url == null || !context.mounted) return;
-    final result =
-        await ref.read(integrationsRepositoryProvider).connectCalendar(url);
-    if (!context.mounted) return;
-    _showResult(context, ref, result);
+    ref.invalidate(integrationsStatusProvider);
+    ref.invalidate(remoteQuestsProvider);
   }
 
   @override
@@ -145,7 +96,7 @@ class SettingsScreen extends ConsumerWidget {
                 'there when you complete them here.',
             connected: status?.todoist.connected ?? false,
             lastSyncAt: status?.todoist.lastSyncAt,
-            onConnect: () => _connectTodoist(context, ref),
+            onConnect: () => connectTodoistFlow(context, ref),
             onSync: () async {
               final result = await repo.syncTodoist();
               if (context.mounted) _showResult(context, ref, result);
@@ -164,7 +115,7 @@ class SettingsScreen extends ConsumerWidget {
                 'and the dashboard.',
             connected: status?.calendar.connected ?? false,
             lastSyncAt: status?.calendar.lastSyncAt,
-            onConnect: () => _connectCalendar(context, ref),
+            onConnect: () => connectCalendarFlow(context, ref),
             onSync: () async {
               final result = await repo.syncCalendar();
               if (context.mounted) _showResult(context, ref, result);

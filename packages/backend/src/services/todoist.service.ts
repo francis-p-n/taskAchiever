@@ -1,7 +1,8 @@
 import { eq, and, or, isNull, isNotNull, lt } from 'drizzle-orm';
 import { db } from '../db';
-import { quests, userSettings } from '../db/schema';
+import { quests, questSteps, userSettings } from '../db/schema';
 import { cache } from '../lib/redis';
+import { aiConfigured, generateSteps } from './ai.service';
 
 const TODOIST_BASE = 'https://api.todoist.com/api/v1';
 
@@ -111,7 +112,24 @@ export class TodoistService {
           })
           .onConflictDoNothing()
           .returning({ id: quests.id });
-        if (inserted.length > 0) imported++;
+        if (inserted.length > 0) {
+          imported++;
+          // Make imported side quests actionable: break them into steps.
+          // Only when the AI is configured — heuristic filler steps would
+          // just be noise on simple todos.
+          if (aiConfigured()) {
+            const { steps, source } = await generateSteps(task.content);
+            if (source === 'ai' && steps.length > 0) {
+              await db.insert(questSteps).values(
+                steps.map((text, i) => ({
+                  id: `${inserted[0].id}-step${i}`,
+                  questId: inserted[0].id,
+                  text,
+                }))
+              ).onConflictDoNothing();
+            }
+          }
+        }
       }
 
       // PUSH: close remote tasks for quests completed locally since the last push.

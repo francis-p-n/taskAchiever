@@ -15,6 +15,7 @@ class QuestEntry {
   final String? remoteId; // set when the quest lives in the backend DB
   final bool isSideQuest;
   final String? recurrence; // null | 'daily' | 'weekly'
+  final List<String> steps;
   final bool completed;
 
   const QuestEntry({
@@ -25,6 +26,7 @@ class QuestEntry {
     this.remoteId,
     this.isSideQuest = false,
     this.recurrence,
+    this.steps = const [],
     this.completed = false,
   });
 
@@ -39,6 +41,7 @@ class QuestEntry {
         remoteId: remoteId,
         isSideQuest: isSideQuest,
         recurrence: recurrence,
+        steps: steps,
         completed: completed ?? this.completed,
       );
 
@@ -58,6 +61,7 @@ class QuestEntry {
         remoteId: dto.id,
         isSideQuest: dto.category == 'side',
         recurrence: dto.recurrence,
+        steps: dto.steps,
         completed: dto.completedAt != null,
       );
 }
