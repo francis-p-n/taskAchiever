@@ -40,8 +40,39 @@ export default async function questRoutes(fastify: FastifyInstance) {
 
   fastify.get('/api/quests', async (request, reply) => {
     const user = request.user as { id: number };
-    const quests = await QuestService.getQuests(user.id);
+    const { includeArchived } = request.query as { includeArchived?: string };
+    const quests = await QuestService.getQuests(user.id, includeArchived === 'true');
     return reply.send(quests);
+  });
+
+  fastify.post('/api/quests/:id/archive', { schema: { params: idParams } }, async (request, reply) => {
+    const user = request.user as { id: number };
+    const { id } = request.params as { id: string };
+    try {
+      return reply.send(await QuestService.archiveQuest(user.id, id, true));
+    } catch (err: any) {
+      return reply.status(404).send({ error: err.message });
+    }
+  });
+
+  fastify.post('/api/quests/:id/unarchive', { schema: { params: idParams } }, async (request, reply) => {
+    const user = request.user as { id: number };
+    const { id } = request.params as { id: string };
+    try {
+      return reply.send(await QuestService.archiveQuest(user.id, id, false));
+    } catch (err: any) {
+      return reply.status(404).send({ error: err.message });
+    }
+  });
+
+  fastify.delete('/api/quests/:id', { schema: { params: idParams } }, async (request, reply) => {
+    const user = request.user as { id: number };
+    const { id } = request.params as { id: string };
+    try {
+      return reply.send(await QuestService.deleteQuest(user.id, id));
+    } catch (err: any) {
+      return reply.status(404).send({ error: err.message });
+    }
   });
 
   fastify.post('/api/quests', { schema: { body: questBody } }, async (request, reply) => {

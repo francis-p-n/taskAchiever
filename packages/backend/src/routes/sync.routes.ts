@@ -4,6 +4,7 @@ import { db } from '../db';
 import { quests, questSteps } from '../db/schema';
 import { eq, gt } from 'drizzle-orm';
 import { cache } from '../lib/redis';
+import { QuestService } from '../services/quest.service';
 
 export default async function syncRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', authenticate);
@@ -89,7 +90,7 @@ export default async function syncRoutes(fastify: FastifyInstance) {
         }
       }
 
-      await cache.del(`quests:${user.id}`);
+      await QuestService.bustQuestCache(user.id);
       return reply.send({ success: true, timestamp: new Date().toISOString(), results });
     } finally {
       await cache.del(lockKey);

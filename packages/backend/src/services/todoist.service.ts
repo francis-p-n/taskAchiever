@@ -166,6 +166,7 @@ export class TodoistService {
 
     await db.update(userSettings).set({ todoistLastSyncAt: new Date() }).where(eq(userSettings.userId, userId));
     await cache.del(`quests:${userId}`);
+    await cache.del(`quests:${userId}:all`);
 
     // Make imported side quests actionable: break them into AI-generated
     // steps. Runs after the response — one Claude call per task would blow
@@ -195,6 +196,7 @@ export class TodoistService {
         }
       }
       await cache.del(`quests:${userId}`); // steps show up on the next fetch
+      await cache.del(`quests:${userId}:all`);
     } catch (err) {
       console.error(`Step generation failed for user ${userId}`, err);
     }

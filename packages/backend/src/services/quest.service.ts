@@ -5,24 +5,27 @@ import { cache } from '../lib/redis';
 import { TodoistService } from './todoist.service';
 
 export class QuestService {
-  static async getQuests(userId: number) {
-    const cached = await cache.get(`quests:${userId}`);
+  static async getQuests(userId: number, includeArchived = false) {
+    const cacheKey = includeArchived ? `quests:${userId}:all` : `quests:${userId}`;
+    const cached = await cache.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
     const userQuests = await db.query.quests.findMany({
-      where: eq(quests.userId, userId),
+      where: includeArchived
+        ? eq(quests.userId, userId)
+        : and(eq(quests.userId, userId), isNull(quests.archivedAt)),
       with: {
         steps: true
       }
     });
 
-    await cache.setEx(`quests:${userId}`, JSON.stringify(userQuests), 300);
+    await cache.setEx(cacheKey, JSON.stringify(userQuests), 300);
     return userQuests;
   }
 
   static async getStats(userId: number) {
     const cached = await cache.get(`cache:stats:${userId}`);
-    if (cached) return JSON.parse(cached);
+    if (cached) return this.withStreakRisk(JSON.parse(cached));
 
     const stats = await db.query.userStats.findFirst({
       where: eq(userStats.userId, userId),
@@ -30,7 +33,47 @@ export class QuestService {
     if (stats) {
       await cache.setEx(`cache:stats:${userId}`, JSON.stringify(stats), 300);
     }
-    return stats;
+    return stats ? this.withStreakRisk(stats) : stats;
+  }
+
+  /** Both list variants (active-only and archived-included) must go together. */
+  static async bustQuestCache(userId: number) {
+    await cache.del(`quests:${userId}`);
+    await cache.del(`quests:${userId}:all`);
+  }
+
+  /** A streak is at risk when nothing has been completed yet today. Computed
+   *  at read time so the cached row stays date-independent. */
+  private static withStreakRisk<T extends { currentStreak?: number | null; lastActiveDate?: string | Date | null }>(stats: T) {
+    const today = new Date().toISOString().split('T')[0];
+    const lastActive = stats.lastActiveDate
+      ? new Date(stats.lastActiveDate).toISOString().split('T')[0]
+      : null;
+    return {
+      ...stats,
+      streakAtRisk: (stats.currentStreak || 0) > 0 && lastActive !== today,
+    };
+  }
+
+  static async archiveQuest(userId: number, questId: string, archived: boolean) {
+    const [quest] = await db.update(quests)
+      .set({ archivedAt: archived ? new Date() : null, updatedAt: new Date() })
+      .where(and(eq(quests.id, questId), eq(quests.userId, userId)))
+      .returning();
+    if (!quest) throw new Error('Quest not found');
+
+    await this.bustQuestCache(userId);
+    return quest;
+  }
+
+  static async deleteQuest(userId: number, questId: string) {
+    const removed = await db.delete(quests)
+      .where(and(eq(quests.id, questId), eq(quests.userId, userId)))
+      .returning({ id: quests.id });
+    if (removed.length === 0) throw new Error('Quest not found');
+
+    await this.bustQuestCache(userId);
+    return { deleted: questId };
   }
 
   static async createQuest(userId: number, data: any) {
@@ -55,7 +98,7 @@ export class QuestService {
       await db.insert(questSteps).values(stepsToInsert);
     }
 
-    await cache.del(`quests:${userId}`);
+    await this.bustQuestCache(userId);
     return this.getQuestById(userId, quest.id);
   }
 
@@ -108,7 +151,7 @@ export class QuestService {
       }).onConflictDoNothing();
     }
 
-    await cache.del(`quests:${userId}`);
+    await this.bustQuestCache(userId);
     return updatedQuest;
   }
 
@@ -167,7 +210,7 @@ export class QuestService {
     });
 
     await cache.del(`cache:stats:${userId}`);
-    await cache.del(`quests:${userId}`);
+    await this.bustQuestCache(userId);
     return updatedQuest;
   }
 
