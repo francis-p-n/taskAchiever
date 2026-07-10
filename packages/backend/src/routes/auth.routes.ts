@@ -8,9 +8,19 @@ import { cache } from '../lib/redis';
 export default async function authRoutes(fastify: FastifyInstance) {
   // Dev/local login for the single-user desktop app: no Google verification,
   // no Redis session — find-or-create the user and hand back a long-lived JWT.
-  fastify.post('/api/auth/dev', async (request, reply) => {
+  fastify.post('/api/auth/dev', {
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          email: { type: 'string', format: 'email', maxLength: 254 },
+          name: { type: 'string', maxLength: 200 },
+        },
+        required: ['email'],
+      },
+    },
+  }, async (request, reply) => {
     const { email, name } = request.body as { email: string; name?: string };
-    if (!email) return reply.status(400).send({ error: 'email is required' });
 
     let user = await db.query.users.findFirst({ where: eq(users.email, email) });
 

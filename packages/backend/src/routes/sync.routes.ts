@@ -29,7 +29,29 @@ export default async function syncRoutes(fastify: FastifyInstance) {
   });
 
   // Client pushes an offline queue of operations to the server
-  fastify.post('/api/sync/push', async (request, reply) => {
+  fastify.post('/api/sync/push', {
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          operations: {
+            type: 'array',
+            maxItems: 500,
+            items: {
+              type: 'object',
+              properties: {
+                collection: { type: 'string', maxLength: 50 },
+                action: { type: 'string', maxLength: 50 },
+                data: { type: 'object' },
+              },
+              required: ['collection', 'action', 'data'],
+            },
+          },
+        },
+        required: ['operations'],
+      },
+    },
+  }, async (request, reply) => {
     const user = request.user as { id: number };
     const { operations } = request.body as { operations: any[] };
 

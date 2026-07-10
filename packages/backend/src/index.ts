@@ -5,8 +5,20 @@ import jwt from '@fastify/jwt';
 
 import authRoutes from './routes/auth.routes';
 import questRoutes from './routes/quest.routes';
+import { errorHandler } from './lib/errors';
 
 const fastify = Fastify({ logger: true });
+
+// Uniform error envelope for handler throws, schema-validation failures
+// and unknown routes: { error, message, statusCode }.
+fastify.setErrorHandler(errorHandler);
+fastify.setNotFoundHandler((request, reply) =>
+  reply.status(404).send({
+    error: 'NOT_FOUND',
+    message: `Route ${request.method} ${request.url} not found`,
+    statusCode: 404,
+  })
+);
 
 // Tolerate empty JSON bodies: clients (e.g. the app's Dio instance) send
 // Content-Type: application/json even on body-less POSTs like /sync triggers,
