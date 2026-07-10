@@ -70,6 +70,7 @@ fastify.register(require('./routes/plaid.routes').default);
 fastify.register(require('./routes/ai.routes').default);
 fastify.register(require('./routes/integrations.routes').default);
 fastify.register(require('./routes/strava.routes').default);
+fastify.register(require('./routes/summary.routes').default);
 
 // Health check route
 fastify.get('/api/health', async (request, reply) => {
