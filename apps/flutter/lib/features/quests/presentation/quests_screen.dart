@@ -35,6 +35,11 @@ class QuestsScreen extends ConsumerWidget {
         title: const Text('Quests'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.add, size: 20),
+            tooltip: 'New Quest',
+            onPressed: () => _openNewQuestDialog(context, ref),
+          ),
+          IconButton(
             icon: const Icon(Icons.sync, size: 18),
             tooltip: 'Sync Quests',
             onPressed: () async {
@@ -189,6 +194,231 @@ class QuestsScreen extends ConsumerWidget {
       ),
     );
   }
+
+  Future<void> _openNewQuestDialog(BuildContext context, WidgetRef ref) async {
+    final draft = await showDialog<_QuestDraft>(
+      context: context,
+      builder: (_) => const _NewQuestDialog(),
+    );
+    if (draft == null || !context.mounted) return;
+
+    DateTime? dueDate;
+    if (draft.time != null) {
+      final now = DateTime.now();
+      dueDate = DateTime(
+          now.year, now.month, now.day, draft.time!.hour, draft.time!.minute);
+    }
+
+    final created = await ref.read(questsRepositoryProvider).createQuest(
+          title: draft.title,
+          category: draft.area.name,
+          difficulty: draft.difficulty,
+          dueDate: dueDate,
+          recurrence: draft.recurrence,
+        );
+    if (!context.mounted) return;
+
+    if (created != null) {
+      ref.invalidate(remoteQuestsProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(draft.recurrence == null
+                ? '"${draft.title}" added'
+                : '"${draft.title}" added — repeats ${draft.recurrence}')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Backend offline — quest not saved.')),
+      );
+    }
+  }
+}
+
+typedef _QuestDraft = ({
+  String title,
+  Area area,
+  int difficulty,
+  TimeOfDay? time,
+  String? recurrence,
+});
+
+class _NewQuestDialog extends StatefulWidget {
+  const _NewQuestDialog();
+
+  @override
+  State<_NewQuestDialog> createState() => _NewQuestDialogState();
+}
+
+class _NewQuestDialogState extends State<_NewQuestDialog> {
+  final _titleController = TextEditingController();
+  Area _area = Area.intel;
+  int _difficulty = 1;
+  TimeOfDay? _time;
+  String? _recurrence;
+
+  static const _difficulties = {
+    1: 'Easy (+10 XP)',
+    2: 'Medium (+20 XP)',
+    3: 'Hard (+30 XP)',
+  };
+  static const _recurrences = {
+    null: 'One-time',
+    'daily': 'Daily',
+    'weekly': 'Weekly',
+  };
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final title = _titleController.text.trim();
+    if (title.isEmpty) return;
+    Navigator.of(context).pop<_QuestDraft>((
+      title: title,
+      area: _area,
+      difficulty: _difficulty,
+      time: _time,
+      recurrence: _recurrence,
+    ));
+  }
+
+  InputDecoration _decoration(String label) => InputDecoration(
+        labelText: label,
+        labelStyle:
+            const TextStyle(fontSize: 12, color: NotionColors.textMuted),
+        enabledBorder: const OutlineInputBorder(
+          borderSide: BorderSide(color: NotionColors.border),
+        ),
+        focusedBorder: const OutlineInputBorder(
+          borderSide: BorderSide(color: NotionColors.textMuted),
+        ),
+        isDense: true,
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: NotionColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: NotionColors.border),
+      ),
+      title: const Text('New quest', style: TextStyle(fontSize: 16)),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 380),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: _titleController,
+              autofocus: true,
+              style: const TextStyle(fontSize: 13),
+              decoration: _decoration('Title'),
+              onSubmitted: (_) => _submit(),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<Area>(
+                    initialValue: _area,
+                    style: const TextStyle(
+                        fontSize: 12, color: NotionColors.textPrimary),
+                    dropdownColor: NotionColors.surfaceHover,
+                    decoration: _decoration('Area'),
+                    items: [
+                      for (final area in Area.values)
+                        DropdownMenuItem(value: area, child: Text(area.label)),
+                    ],
+                    onChanged: (v) => setState(() => _area = v ?? _area),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    initialValue: _difficulty,
+                    style: const TextStyle(
+                        fontSize: 12, color: NotionColors.textPrimary),
+                    dropdownColor: NotionColors.surfaceHover,
+                    decoration: _decoration('Difficulty'),
+                    items: [
+                      for (final entry in _difficulties.entries)
+                        DropdownMenuItem(
+                            value: entry.key, child: Text(entry.value)),
+                    ],
+                    onChanged: (v) =>
+                        setState(() => _difficulty = v ?? _difficulty),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final picked = await showTimePicker(
+                          context: context,
+                          initialTime: _time ?? TimeOfDay.now());
+                      if (picked != null) setState(() => _time = picked);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: NotionColors.textPrimary,
+                      side: const BorderSide(color: NotionColors.border),
+                    ),
+                    icon: const Icon(Icons.schedule_outlined, size: 14),
+                    label: Text(
+                      _time == null ? 'Anytime' : _time!.format(context),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: DropdownButtonFormField<String?>(
+                    initialValue: _recurrence,
+                    style: const TextStyle(
+                        fontSize: 12, color: NotionColors.textPrimary),
+                    dropdownColor: NotionColors.surfaceHover,
+                    decoration: _decoration('Repeats'),
+                    items: [
+                      for (final entry in _recurrences.entries)
+                        DropdownMenuItem(
+                            value: entry.key, child: Text(entry.value)),
+                    ],
+                    onChanged: (v) => setState(() => _recurrence = v),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text(
+            'Cancel',
+            style: TextStyle(color: NotionColors.textMuted, fontSize: 13),
+          ),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: NotionColors.surfaceHover,
+            foregroundColor: NotionColors.textPrimary,
+          ),
+          onPressed: _submit,
+          child: const Text('Add', style: TextStyle(fontSize: 13)),
+        ),
+      ],
+    );
+  }
 }
 
 class QuestCard extends StatelessWidget {
@@ -250,6 +480,14 @@ class QuestCard extends StatelessWidget {
                     color: NotionColors.green,
                     bgColor: NotionColors.greenBg,
                   ),
+                  if (quest.recurrence != null) ...[
+                    const SizedBox(width: 6),
+                    NotionTag(
+                      text: quest.recurrence == 'daily' ? 'Daily' : 'Weekly',
+                      color: NotionColors.blue,
+                      bgColor: NotionColors.blueBg,
+                    ),
+                  ],
                 ],
               ),
             ],

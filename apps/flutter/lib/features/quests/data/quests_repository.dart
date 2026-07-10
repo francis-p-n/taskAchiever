@@ -10,6 +10,7 @@ class QuestDto {
   final int difficulty;
   final DateTime? dueDate;
   final DateTime? completedAt;
+  final String? recurrence; // null | 'daily' | 'weekly'
 
   QuestDto({
     required this.id,
@@ -18,6 +19,7 @@ class QuestDto {
     required this.difficulty,
     this.dueDate,
     this.completedAt,
+    this.recurrence,
   });
 
   factory QuestDto.fromJson(Map<String, dynamic> json) => QuestDto(
@@ -28,6 +30,7 @@ class QuestDto {
         dueDate: json['dueDate'] != null ? DateTime.tryParse(json['dueDate'] as String) : null,
         completedAt:
             json['completedAt'] != null ? DateTime.tryParse(json['completedAt'] as String) : null,
+        recurrence: json['recurrence'] as String?,
       );
 
   int get xp => difficulty * 10;
@@ -64,6 +67,7 @@ class QuestsRepository {
     String? category,
     int difficulty = 1,
     DateTime? dueDate,
+    String? recurrence,
   }) async {
     try {
       final response = await _dio.post('/quests', data: {
@@ -72,6 +76,7 @@ class QuestsRepository {
         'category': category,
         'difficulty': difficulty,
         'dueDate': dueDate?.toIso8601String(),
+        if (recurrence != null) 'recurrence': recurrence,
       });
       return QuestDto.fromJson(response.data as Map<String, dynamic>);
     } on DioException {

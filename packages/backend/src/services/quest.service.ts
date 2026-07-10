@@ -41,6 +41,7 @@ export class QuestService {
       category: data.category,
       difficulty: data.difficulty || 1,
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      recurrence: data.recurrence === 'daily' || data.recurrence === 'weekly' ? data.recurrence : null,
       todoistId: data.todoistId,
     }).returning();
 
@@ -84,6 +85,28 @@ export class QuestService {
     }).where(eq(quests.id, questId)).returning();
 
     await this.updateUserStats(userId, quest.difficulty || 1);
+
+    // Recurring quests respawn: completing today's occurrence schedules the
+    // next one (daily = +1 day, weekly = +7 days from the due date or now).
+    if (quest.recurrence === 'daily' || quest.recurrence === 'weekly') {
+      const intervalMs = (quest.recurrence === 'daily' ? 1 : 7) * 24 * 60 * 60 * 1000;
+      const base = quest.dueDate ? new Date(quest.dueDate) : new Date();
+      let nextDue = new Date(base.getTime() + intervalMs);
+      while (nextDue.getTime() <= Date.now()) {
+        nextDue = new Date(nextDue.getTime() + intervalMs);
+      }
+      await db.insert(quests).values({
+        id: `${questId.replace(/-r\d+$/, '')}-r${nextDue.getTime()}`,
+        userId,
+        title: quest.title,
+        description: quest.description,
+        category: quest.category,
+        difficulty: quest.difficulty,
+        dueDate: nextDue,
+        recurrence: quest.recurrence,
+      }).onConflictDoNothing();
+    }
+
     await cache.del(`quests:${userId}`);
     return updatedQuest;
   }

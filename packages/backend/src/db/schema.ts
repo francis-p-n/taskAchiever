@@ -17,6 +17,7 @@ export const quests = pgTable('quests', {
   category: text('category'),
   difficulty: integer('difficulty').default(1),
   dueDate: timestamp('due_date'),
+  recurrence: text('recurrence'), // null | 'daily' | 'weekly'
   todoistId: text('todoist_id'),
   todoistSyncedAt: timestamp('todoist_synced_at'), // last state pushed to Todoist
   completedAt: timestamp('completed_at'),
