@@ -15,6 +15,28 @@ const pool = new Pool({
 
 const statements = [
   `ALTER TABLE quests ADD COLUMN IF NOT EXISTS recurrence text`,
+  `ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS strava_athlete_id text`,
+  `ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS strava_access_token text`,
+  `ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS strava_refresh_token text`,
+  `ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS strava_expires_at timestamp`,
+  `ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS strava_last_sync_at timestamp`,
+  `CREATE TABLE IF NOT EXISTS activities (
+     id serial PRIMARY KEY,
+     user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     source text NOT NULL,
+     external_id text,
+     name text NOT NULL,
+     sport_type text,
+     start_time timestamp NOT NULL,
+     duration_seconds integer DEFAULT 0,
+     distance_meters integer,
+     calories_burned integer DEFAULT 0,
+     avg_heart_rate integer,
+     created_at timestamp NOT NULL DEFAULT now()
+   )`,
+  `CREATE INDEX IF NOT EXISTS activities_user_start_idx ON activities (user_id, start_time)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS activities_user_external_idx
+     ON activities (user_id, source, external_id)`,
 ];
 
 async function main() {

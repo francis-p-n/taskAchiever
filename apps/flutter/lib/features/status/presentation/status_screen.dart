@@ -128,6 +128,15 @@ class StatusScreen extends ConsumerWidget {
                 ),
                 const Divider(height: 1),
                 _integrationRow(
+                  'Strava',
+                  connected: integrations?.strava.connected ?? false,
+                  lastSyncAt: integrations?.strava.lastSyncAt,
+                  note: integrations?.stravaConfigured == false
+                      ? 'server not configured'
+                      : null,
+                ),
+                const Divider(height: 1),
+                _integrationRow(
                   'Plaid (bank)',
                   connected: integrations?.plaid.connected ?? false,
                   lastSyncAt: integrations?.plaid.lastSyncAt,

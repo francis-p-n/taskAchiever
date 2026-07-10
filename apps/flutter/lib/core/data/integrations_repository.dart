@@ -27,14 +27,18 @@ class IntegrationsStatus {
   final IntegrationInfo todoist;
   final IntegrationInfo calendar;
   final IntegrationInfo plaid;
+  final IntegrationInfo strava;
   final bool plaidConfigured;
+  final bool stravaConfigured;
   final bool aiConfigured;
 
   const IntegrationsStatus({
     required this.todoist,
     required this.calendar,
     required this.plaid,
+    required this.strava,
     required this.plaidConfigured,
+    required this.stravaConfigured,
     required this.aiConfigured,
   });
 }
@@ -59,7 +63,9 @@ class IntegrationsRepository {
         todoist: IntegrationInfo.fromJson(data['todoist'] as Map<String, dynamic>?),
         calendar: IntegrationInfo.fromJson(data['calendar'] as Map<String, dynamic>?),
         plaid: IntegrationInfo.fromJson(data['plaid'] as Map<String, dynamic>?),
+        strava: IntegrationInfo.fromJson(data['strava'] as Map<String, dynamic>?),
         plaidConfigured: (data['plaid'] as Map<String, dynamic>?)?['configured'] == true,
+        stravaConfigured: (data['strava'] as Map<String, dynamic>?)?['configured'] == true,
         aiConfigured: (data['ai'] as Map<String, dynamic>?)?['configured'] == true,
       );
     } on DioException {
@@ -91,6 +97,23 @@ class IntegrationsRepository {
 
   Future<IntegrationResult> disconnectCalendar() =>
       _action(() => _dio.delete('/integrations/calendar'));
+
+  /// URL to open in the browser for the Strava OAuth flow, or null when the
+  /// backend is offline / Strava isn't configured server-side.
+  Future<String?> fetchStravaAuthUrl() async {
+    try {
+      final res = await _dio.get('/integrations/strava/auth-url');
+      return (res.data as Map<String, dynamic>)['url'] as String?;
+    } on DioException {
+      return null;
+    }
+  }
+
+  Future<IntegrationResult> syncStrava() =>
+      _action(() => _dio.post('/integrations/strava/sync', options: _longCall));
+
+  Future<IntegrationResult> disconnectStrava() =>
+      _action(() => _dio.delete('/integrations/strava'));
 
   Future<IntegrationResult> _action(Future<Response> Function() call) async {
     try {

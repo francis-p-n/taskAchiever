@@ -2,6 +2,41 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_os/core/network/api_client.dart';
 
+/// One workout/activity row (Strava import or manual log).
+class ActivityDto {
+  final String name;
+  final String? sportType;
+  final String source; // 'strava' | 'manual' | 'health'
+  final DateTime startTime;
+  final int durationSeconds;
+  final int caloriesBurned;
+  final int? avgHeartRate;
+
+  const ActivityDto({
+    required this.name,
+    this.sportType,
+    required this.source,
+    required this.startTime,
+    this.durationSeconds = 0,
+    this.caloriesBurned = 0,
+    this.avgHeartRate,
+  });
+
+  static ActivityDto? tryParse(Map<String, dynamic> json) {
+    final start = DateTime.tryParse(json['startTime']?.toString() ?? '');
+    if (start == null) return null;
+    return ActivityDto(
+      name: json['name']?.toString() ?? 'Activity',
+      sportType: json['sportType']?.toString(),
+      source: json['source']?.toString() ?? 'manual',
+      startTime: start,
+      durationSeconds: (json['durationSeconds'] as num?)?.toInt() ?? 0,
+      caloriesBurned: (json['caloriesBurned'] as num?)?.toInt() ?? 0,
+      avgHeartRate: (json['avgHeartRate'] as num?)?.toInt(),
+    );
+  }
+}
+
 /// Today's fitness snapshot from GET /fitness/daily.
 class DailyFitnessDto {
   final int steps;
@@ -9,6 +44,7 @@ class DailyFitnessDto {
   final int? heartRateMin;
   final int? heartRateMax;
   final int? sleepScore;
+  final List<ActivityDto> activities;
 
   const DailyFitnessDto({
     this.steps = 0,
@@ -16,6 +52,7 @@ class DailyFitnessDto {
     this.heartRateMin,
     this.heartRateMax,
     this.sleepScore,
+    this.activities = const [],
   });
 
   factory DailyFitnessDto.fromJson(Map<String, dynamic> json) {
@@ -25,6 +62,13 @@ class DailyFitnessDto {
       heartRateMin: (json['heartRateMin'] as num?)?.toInt(),
       heartRateMax: (json['heartRateMax'] as num?)?.toInt(),
       sleepScore: (json['sleepScore'] as num?)?.toInt(),
+      activities: [
+        if (json['activities'] is List)
+          for (final item in json['activities'] as List)
+            if (item is Map<String, dynamic>)
+              if (ActivityDto.tryParse(item) case final ActivityDto activity)
+                activity,
+      ],
     );
   }
 
@@ -33,7 +77,11 @@ class DailyFitnessDto {
 
   /// True when nothing has been logged today.
   bool get isEmpty =>
-      steps == 0 && caloriesBurned == 0 && heartRateMin == null && heartRateMax == null;
+      steps == 0 &&
+      caloriesBurned == 0 &&
+      heartRateMin == null &&
+      heartRateMax == null &&
+      activities.isEmpty;
 }
 
 class FitnessRepository {

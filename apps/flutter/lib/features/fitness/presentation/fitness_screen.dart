@@ -2,10 +2,13 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:life_os/core/data/integrations_repository.dart';
 import 'package:life_os/core/theme.dart';
 import 'package:life_os/features/fitness/data/fitness_repository.dart';
+import 'package:life_os/shared/widgets/integration_card.dart';
 import 'package:life_os/shared/widgets/metric_callout.dart';
 import 'package:life_os/shared/widgets/notion_card.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class FitnessScreen extends ConsumerWidget {
   const FitnessScreen({super.key});
@@ -104,7 +107,7 @@ class FitnessScreen extends ConsumerWidget {
               ),
             ),
           )
-        else
+        else ...[
           NotionCard(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -138,6 +141,25 @@ class FitnessScreen extends ConsumerWidget {
               ],
             ),
           ),
+          if (data.activities.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            NotionCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  for (var i = 0; i < data.activities.length; i++) ...[
+                    if (i > 0) const Divider(height: 1),
+                    _ActivityRow(activity: data.activities[i]),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+        const SizedBox(height: 20),
+        const NotionSectionTitle(
+            icon: Icons.link_outlined, title: 'Integrations'),
+        const _StravaCard(),
       ],
     );
   }
@@ -252,6 +274,139 @@ class FitnessScreen extends ConsumerWidget {
               : 'Backend unreachable — activity not saved.',
         ),
       ),
+    );
+  }
+}
+
+class _ActivityRow extends StatelessWidget {
+  final ActivityDto activity;
+
+  const _ActivityRow({required this.activity});
+
+  static String _formatTime(DateTime t) {
+    final local = t.toLocal();
+    final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '$hour:$minute ${local.hour < 12 ? 'AM' : 'PM'}';
+  }
+
+  IconData get _icon {
+    final sport = (activity.sportType ?? '').toLowerCase();
+    if (sport.contains('run')) return Icons.directions_run_outlined;
+    if (sport.contains('ride') || sport.contains('bike')) {
+      return Icons.directions_bike_outlined;
+    }
+    if (sport.contains('swim')) return Icons.pool_outlined;
+    if (sport.contains('walk') || sport.contains('hike')) {
+      return Icons.directions_walk_outlined;
+    }
+    return Icons.fitness_center_outlined;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final minutes = (activity.durationSeconds / 60).round();
+    final details = [
+      _formatTime(activity.startTime),
+      if (minutes > 0) '${minutes}min',
+      if (activity.caloriesBurned > 0) '${activity.caloriesBurned} kcal',
+      if (activity.avgHeartRate != null) '${activity.avgHeartRate} bpm avg',
+    ].join(' · ');
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Row(
+        children: [
+          Icon(_icon, size: 15, color: NotionColors.orange),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(activity.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600)),
+                Text(details,
+                    style: const TextStyle(
+                        fontSize: 11, color: NotionColors.textMuted)),
+              ],
+            ),
+          ),
+          if (activity.source == 'strava')
+            const NotionTag(
+              text: 'Strava',
+              color: NotionColors.orange,
+              bgColor: NotionColors.orangeBg,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Connect/sync card for Strava. Connecting opens the browser for OAuth;
+/// the backend callback stores the tokens and runs the first sync.
+class _StravaCard extends ConsumerWidget {
+  const _StravaCard();
+
+  void _showResult(
+      BuildContext context, WidgetRef ref, IntegrationResult result) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result.message)),
+    );
+    ref.invalidate(integrationsStatusProvider);
+    ref.invalidate(dailyFitnessProvider);
+  }
+
+  Future<void> _connect(BuildContext context, WidgetRef ref) async {
+    final url =
+        await ref.read(integrationsRepositoryProvider).fetchStravaAuthUrl();
+    if (!context.mounted) return;
+    if (url == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Strava unavailable — backend offline or STRAVA_CLIENT_ID / '
+              'STRAVA_CLIENT_SECRET not set on the server.'),
+        ),
+      );
+      return;
+    }
+    await launchUrl(Uri.parse(url));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+            'Authorize in the browser, then come back and hit Refresh.'),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final strava =
+        ref.watch(integrationsStatusProvider).valueOrNull?.strava;
+    final repo = ref.read(integrationsRepositoryProvider);
+
+    return IntegrationCard(
+      icon: Icons.directions_bike_outlined,
+      name: 'Strava',
+      description:
+          'Import your workouts automatically. Duplicate logs of the same '
+          'session are detected and removed — Strava wins.',
+      connected: strava?.connected ?? false,
+      lastSyncAt: strava?.lastSyncAt,
+      onConnect: () => _connect(context, ref),
+      onSync: () async {
+        final result = await repo.syncStrava();
+        if (context.mounted) _showResult(context, ref, result);
+      },
+      onDisconnect: () async {
+        final result = await repo.disconnectStrava();
+        if (context.mounted) _showResult(context, ref, result);
+      },
     );
   }
 }

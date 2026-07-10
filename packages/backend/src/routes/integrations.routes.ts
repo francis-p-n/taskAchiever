@@ -6,6 +6,7 @@ import { userSettings, scheduleEvents } from '../db/schema';
 import { TodoistService } from '../services/todoist.service';
 import { CalendarService } from '../services/calendar.service';
 import { PlaidService } from '../services/plaid.service';
+import { StravaService } from '../services/strava.service';
 import { aiConfigured } from './ai.routes';
 
 async function getOrCreateSettings(userId: number) {
@@ -37,6 +38,11 @@ export default async function integrationsRoutes(fastify: FastifyInstance) {
         configured: PlaidService.configured(),
         connected: Boolean(settings.plaidAccessToken),
         lastSyncAt: settings.plaidLastSyncAt,
+      },
+      strava: {
+        configured: StravaService.configured(),
+        connected: Boolean(settings.stravaRefreshToken),
+        lastSyncAt: settings.stravaLastSyncAt,
       },
       ai: { configured: aiConfigured() },
     });
@@ -132,6 +138,35 @@ export default async function integrationsRoutes(fastify: FastifyInstance) {
     const result = await CalendarService.syncUser(user.id);
     if (result.status === 'error') return reply.status(502).send(result);
     return reply.send(result);
+  });
+
+  // ---- Strava (activities) ----
+
+  fastify.get('/api/integrations/strava/auth-url', async (request, reply) => {
+    const user = request.user as { id: number };
+    if (!StravaService.configured()) {
+      return reply.status(503).send({
+        error: 'Strava not configured — set STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET',
+      });
+    }
+    const state = fastify.jwt.sign({ id: user.id, purpose: 'strava' }, { expiresIn: '15m' });
+    const base =
+      process.env.PUBLIC_BASE_URL || `http://127.0.0.1:${process.env.PORT || 3000}`;
+    const url = StravaService.authUrl(state, `${base}/api/integrations/strava/callback`);
+    return reply.send({ url });
+  });
+
+  fastify.post('/api/integrations/strava/sync', async (request, reply) => {
+    const user = request.user as { id: number };
+    const result = await StravaService.syncUser(user.id);
+    if (result.status === 'error') return reply.status(502).send(result);
+    return reply.send(result);
+  });
+
+  fastify.delete('/api/integrations/strava', async (request, reply) => {
+    const user = request.user as { id: number };
+    await StravaService.disconnect(user.id);
+    return reply.send({ success: true });
   });
 
   // ---- Plaid (bank transactions) ----

@@ -1,8 +1,8 @@
 import { FastifyInstance } from 'fastify';
 import { authenticate } from '../middleware/auth';
 import { db } from '../db';
-import { healthMetrics } from '../db/schema';
-import { eq, and, gte } from 'drizzle-orm';
+import { healthMetrics, activities } from '../db/schema';
+import { eq, and, gte, desc } from 'drizzle-orm';
 
 export default async function fitnessRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', authenticate);
@@ -19,7 +19,22 @@ export default async function fitnessRoutes(fastify: FastifyInstance) {
       )
     });
 
-    return reply.send(metrics || {});
+    // Recent workouts (Strava + manual), newest first, for the Activity Log.
+    const recent = await db.query.activities.findMany({
+      where: eq(activities.userId, user.id),
+      orderBy: desc(activities.startTime),
+      limit: 20,
+    });
+
+    const todayActivityCalories = recent
+      .filter((a) => a.startTime >= today)
+      .reduce((sum, a) => sum + (a.caloriesBurned || 0), 0);
+
+    return reply.send({
+      ...(metrics || {}),
+      caloriesBurned: (metrics?.caloriesBurned || 0) + todayActivityCalories,
+      activities: recent,
+    });
   });
 
   fastify.post('/api/fitness', async (request, reply) => {

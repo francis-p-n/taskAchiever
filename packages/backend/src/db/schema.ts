@@ -73,6 +73,11 @@ export const userSettings = pgTable('user_settings', {
   plaidItemId: text('plaid_item_id'),
   plaidCursor: text('plaid_cursor'), // /transactions/sync incremental cursor
   plaidLastSyncAt: timestamp('plaid_last_sync_at'),
+  stravaAthleteId: text('strava_athlete_id'),
+  stravaAccessToken: text('strava_access_token'), // Will be encrypted in prod
+  stravaRefreshToken: text('strava_refresh_token'),
+  stravaExpiresAt: timestamp('strava_expires_at'),
+  stravaLastSyncAt: timestamp('strava_last_sync_at'),
   syncEnabled: boolean('sync_enabled').default(true),
   yearlyGoal: integer('yearly_goal').default(52),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -90,6 +95,27 @@ export const healthMetrics = pgTable('health_metrics', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (t) => ({
   userDateIdx: uniqueIndex('health_metrics_user_date_idx').on(t.userId, t.date),
+}));
+
+// Individual workouts/activities from any source. Strava rows carry the
+// Strava id as external_id; overlapping duplicates from other sources are
+// removed on import (Strava wins).
+export const activities = pgTable('activities', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  source: text('source').notNull(), // 'strava' | 'manual' | 'health'
+  externalId: text('external_id'),
+  name: text('name').notNull(),
+  sportType: text('sport_type'),
+  startTime: timestamp('start_time').notNull(),
+  durationSeconds: integer('duration_seconds').default(0),
+  distanceMeters: integer('distance_meters'),
+  caloriesBurned: integer('calories_burned').default(0),
+  avgHeartRate: integer('avg_heart_rate'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (t) => ({
+  userStartIdx: index('activities_user_start_idx').on(t.userId, t.startTime),
+  userExternalIdx: uniqueIndex('activities_user_external_idx').on(t.userId, t.source, t.externalId),
 }));
 
 export const nutritionLogs = pgTable('nutrition_logs', {
