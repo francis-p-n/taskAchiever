@@ -1,5 +1,6 @@
 import { TodoistService } from '../services/todoist.service';
 import { CalendarService } from '../services/calendar.service';
+import { runReminderCycle } from './reminders';
 
 const SYNC_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -15,6 +16,11 @@ async function runSyncCycle() {
     await CalendarService.syncAllUsers();
   } catch (err) {
     console.error('[scheduler] calendar sync cycle failed:', err);
+  }
+  try {
+    await runReminderCycle();
+  } catch (err) {
+    console.error('[scheduler] reminder cycle failed:', err);
   }
   // Plaid is webhook-driven (plus on-demand /api/integrations/plaid/sync);
   // no periodic polling needed here.
