@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:life_os/core/offline_queue.dart';
 import 'package:life_os/features/player/domain/player.dart';
 import 'package:life_os/features/quests/data/quests_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -95,11 +96,13 @@ List<QuestEntry> _fallbackQuests() => const [
 /// Completions are persisted per-day locally (for the offline fallback
 /// quests) and to the backend when the quest has a remote id.
 class QuestsNotifier extends StateNotifier<List<QuestEntry>> {
-  QuestsNotifier(this._repository, List<QuestEntry> seed) : super(seed) {
+  QuestsNotifier(this._repository, this._offlineQueue, List<QuestEntry> seed)
+      : super(seed) {
     _applyStoredCompletions();
   }
 
   final QuestsRepository _repository;
+  final OfflineQueue _offlineQueue;
 
   static String _today() => DateTime.now().toIso8601String().substring(0, 10);
 
@@ -141,8 +144,19 @@ class QuestsNotifier extends StateNotifier<List<QuestEntry>> {
     _storeCompletions();
 
     // Persist completion to the backend (awards XP/streak in user_stats).
+    // Unreachable backend → the op joins the offline queue and replays on
+    // reconnect (the server resolves any conflict, last write wins).
     if (quest.remoteId != null) {
-      _repository.completeQuest(quest.remoteId!);
+      final at = DateTime.now().toIso8601String();
+      _repository.completeQuest(quest.remoteId!).then((ok) {
+        if (!ok) {
+          _offlineQueue.enqueue(PendingOp('complete', {
+            'id': quest.remoteId,
+            'at': at,
+            'fulfillment': 3,
+          }));
+        }
+      });
     }
     return true;
   }
@@ -160,7 +174,15 @@ class QuestsNotifier extends StateNotifier<List<QuestEntry>> {
     _storeCompletions();
 
     if (quest.remoteId != null) {
-      _repository.uncompleteQuest(quest.remoteId!);
+      final at = DateTime.now().toIso8601String();
+      _repository.uncompleteQuest(quest.remoteId!).then((ok) {
+        if (!ok) {
+          _offlineQueue.enqueue(PendingOp('uncomplete', {
+            'id': quest.remoteId,
+            'at': at,
+          }));
+        }
+      });
     }
     return true;
   }
@@ -176,5 +198,9 @@ final questsProvider =
   final seed = (remote != null && remote.isNotEmpty)
       ? remote.map(QuestEntry.fromDto).toList()
       : _fallbackQuests();
-  return QuestsNotifier(ref.watch(questsRepositoryProvider), seed);
+  return QuestsNotifier(
+    ref.watch(questsRepositoryProvider),
+    ref.watch(offlineQueueProvider),
+    seed,
+  );
 });

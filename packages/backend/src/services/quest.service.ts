@@ -185,7 +185,8 @@ export class QuestService {
 
     const [updatedQuest] = await db.update(quests).set({
       completedAt: new Date(),
-      fulfillment
+      fulfillment,
+      updatedAt: new Date()
     }).where(eq(quests.id, questId)).returning();
 
     await this.updateUserStats(userId, quest.difficulty || 1);
@@ -225,7 +226,8 @@ export class QuestService {
 
     const [updatedQuest] = await db.update(quests).set({
       completedAt: null,
-      fulfillment: null
+      fulfillment: null,
+      updatedAt: new Date()
     }).where(eq(quests.id, questId)).returning();
 
     // Completing a recurring quest spawned the next occurrence — undo

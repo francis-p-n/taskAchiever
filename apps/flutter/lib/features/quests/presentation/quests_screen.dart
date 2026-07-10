@@ -51,7 +51,10 @@ class QuestsScreen extends ConsumerWidget {
                 const SnackBar(content: Text('Syncing data...')),
               );
 
-              final ok = await ref.read(syncEngineProvider).pullUpdates();
+              // Replay anything queued offline, then refetch server state.
+              await ref.read(syncEngineProvider).flushQueue();
+              final ok =
+                  await ref.read(questsRepositoryProvider).fetchQuests() != null;
               ref.invalidate(remoteQuestsProvider);
 
               if (context.mounted) {

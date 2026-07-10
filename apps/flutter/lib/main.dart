@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:life_os/core/providers.dart';
 import 'package:life_os/core/router.dart';
 import 'package:life_os/core/theme.dart';
 import 'package:life_os/features/player/data/stats_repository.dart';
@@ -20,6 +21,8 @@ class LifeOSApp extends ConsumerWidget {
     // is warm, and lifetime stats so the player's level reflects the DB.
     ref.watch(remoteQuestsProvider);
     ref.watch(playerHydrationProvider);
+    // Offline sync loop: replay queued mutations at startup and on reconnect.
+    ref.watch(offlineSyncProvider);
 
     return MaterialApp.router(
       title: 'lifeOS',

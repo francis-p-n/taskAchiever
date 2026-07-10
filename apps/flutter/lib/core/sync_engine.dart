@@ -1,53 +1,69 @@
-// SyncEngine skeleton for Flutter
-import 'dart:convert';
+import 'dart:async';
 import 'dart:developer' as developer;
+
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 
+import 'package:life_os/core/offline_queue.dart';
+
+/// Drains the offline mutation queue to the backend and reports whether
+/// anything was applied, so callers know to refetch server state.
+///
+/// Conflict resolution is server-side last-write-wins: each op carries the
+/// client timestamp (`at`), the server compares it with the row's updatedAt
+/// and answers 'applied', 'conflict' (server row included) or 'missing'.
+/// In every case the queue entry is consumed — the refetch that follows a
+/// flush replaces local state with the server's resolution.
 class SyncEngine {
-  final Dio dio;
-  
-  SyncEngine(this.dio);
+  SyncEngine(this._dio, this._queue);
 
-  Future<void> pushOfflineOperations() async {
-    // 1. Read pending operations from local Isar `PendingOperation` collection
-    final operations = []; // e.g. await isar.pendingOperations.where().findAll();
-    
-    if (operations.isEmpty) return;
+  final Dio _dio;
+  final OfflineQueue _queue;
+  bool _flushing = false;
 
+  /// Pushes queued offline ops. Returns true when ops were flushed and the
+  /// caller should refresh quest data. Leaves the queue intact when the
+  /// backend is still unreachable.
+  Future<bool> flushQueue() async {
+    if (_flushing) return false;
+    _flushing = true;
     try {
-      final response = await dio.post('/api/sync/push', data: {
-        'operations': operations.map((o) => jsonDecode(o.payload)).toList(),
+      final ops = await _queue.load();
+      if (ops.isEmpty) return false;
+
+      final response = await _dio.post('/sync/push', data: {
+        'operations': [for (final op in ops) op.toJson()],
       });
 
       if (response.statusCode == 200) {
-        // 2. Clear local operations queue on success
-        // await isar.writeTxn(() => isar.pendingOperations.clear());
-      }
-    } catch (e) {
-      developer.log('Sync failed, will retry later: $e', name: 'SyncEngine');
-    }
-  }
-
-  /// Returns true when the pull succeeded, false when the backend was
-  /// unreachable (the app is local-first, so this is a normal condition).
-  Future<bool> pullUpdates() async {
-    // 1. Fetch last sync timestamp from local storage
-    final lastSync = '2026-01-01T00:00:00Z'; // e.g. prefs.getString('lastSync')
-
-    try {
-      final response = await dio.get('/sync/pull', queryParameters: {'since': lastSync});
-
-      if (response.statusCode == 200) {
-        // 2. Upsert fetched records (quests, stats) from response.data
-        //    into the local Isar DB
-        // 3. Update last sync timestamp
-        // prefs.setString('lastSync', response.data['timestamp']);
+        await _queue.clear();
+        final results = (response.data['results'] as List?) ?? const [];
+        final conflicts =
+            results.where((r) => r is Map && r['status'] == 'conflict').length;
+        developer.log(
+          'Flushed ${ops.length} offline ops ($conflicts conflicts, server won)',
+          name: 'SyncEngine',
+        );
         return true;
       }
       return false;
-    } catch (e) {
-      developer.log('Pull failed: $e', name: 'SyncEngine');
+    } on DioException catch (e) {
+      // 409 = another sync in flight; anything else = still offline. Either
+      // way the queue survives for the next attempt.
+      developer.log('Flush deferred: ${e.message}', name: 'SyncEngine');
       return false;
+    } finally {
+      _flushing = false;
     }
+  }
+
+  /// Fires [onReconnect] whenever connectivity returns, so the app can flush
+  /// the queue and refetch without polling.
+  StreamSubscription<List<ConnectivityResult>> watchConnectivity(
+      void Function() onReconnect) {
+    return Connectivity().onConnectivityChanged.listen((results) {
+      final online = results.any((r) => r != ConnectivityResult.none);
+      if (online) onReconnect();
+    });
   }
 }
