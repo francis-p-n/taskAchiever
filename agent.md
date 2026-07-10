@@ -6,7 +6,7 @@ Welcome! This file serves as the single source of truth and onboarding context f
 
 ## 🎯 Project Overview & Mission
 
-**Life Achiever** (formerly SideQuest Achiever) is a comprehensive life-management ecosystem designed to gamify and track five major domains: Quests (skill development), Fitness, Food, Spending, and Schedule. It utilizes an offline-first mobile and desktop application that syncs in real-time to a robust backend infrastructure.
+**lifeOS** (formerly Life Achiever / SideQuest Achiever; Dart package `life_os`) is a comprehensive life-management ecosystem designed to gamify and track five major domains: Quests (skill development), Fitness, Food, Spending, and Schedule. It utilizes an offline-first mobile and desktop application that syncs in real-time to a robust backend infrastructure.
 
 ---
 

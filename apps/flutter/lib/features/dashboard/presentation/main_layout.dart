@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:life_achiever/core/theme.dart';
-import 'package:life_achiever/features/player/application/player_notifier.dart';
+import 'package:life_os/core/theme.dart';
+import 'package:life_os/features/player/application/player_notifier.dart';
 
 class MainLayout extends ConsumerWidget {
   final Widget child;
@@ -56,7 +56,22 @@ class MainLayout extends ConsumerWidget {
         padding: const EdgeInsets.only(bottom: 20.0, top: 16.0),
         child: Column(
           children: [
-            const Text('🎮', style: TextStyle(fontSize: 22)),
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: NotionColors.surfaceHover,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: NotionColors.border),
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.grid_view_rounded,
+                  size: 15,
+                  color: NotionColors.textPrimary,
+                ),
+              ),
+            ),
             const SizedBox(height: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:life_achiever/features/player/domain/player.dart';
+import 'package:life_os/features/player/domain/player.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _prefsKey = 'player_state_v2';
@@ -19,10 +19,11 @@ class XpGainResult {
 
 class PlayerNotifier extends StateNotifier<Player> {
   PlayerNotifier() : super(const Player()) {
-    _load();
+    _loading = _load();
   }
 
   SharedPreferences? _prefs;
+  Future<void>? _loading;
 
   Future<SharedPreferences> _instance() async =>
       _prefs ??= await SharedPreferences.getInstance();
@@ -38,6 +39,22 @@ class PlayerNotifier extends StateNotifier<Player> {
   Future<void> _save() async {
     final prefs = await _instance();
     await prefs.setString(_prefsKey, state.toJson());
+  }
+
+  /// Rebases level/progress on the backend's lifetime XP (user_stats).
+  /// Waits for the prefs load so it can't be overwritten by stale local state.
+  Future<void> hydrateFromServerXp(int experiencePoints) async {
+    await _loading;
+    if (experiencePoints <= state.totalXp) return; // local is ahead or equal
+
+    var level = 1;
+    var xp = experiencePoints;
+    while (xp >= Player.xpForLevel(level)) {
+      xp -= Player.xpForLevel(level);
+      level++;
+    }
+    state = state.copyWith(level: level, xp: xp);
+    _save();
   }
 
   /// Awards XP (optionally growing an area), handling multi-level carryover.

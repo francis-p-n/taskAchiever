@@ -32,11 +32,20 @@ class NotionColors {
   static const pink = Color(0xFFDE87B0);
 }
 
+/// Focus ring color, shadcn-style: a soft outline that appears on
+/// keyboard focus instead of Material's ripple/overlay.
+const _focusRing = Color(0xFF5A5A5A);
+
 ThemeData buildGameTheme() {
   final base = ThemeData(
     brightness: Brightness.dark,
     useMaterial3: true,
     scaffoldBackgroundColor: NotionColors.background,
+    // shadcn components don't ripple — they shift background subtly.
+    splashFactory: NoSplash.splashFactory,
+    highlightColor: Colors.transparent,
+    hoverColor: NotionColors.surfaceHover,
+    focusColor: NotionColors.surfaceHover,
     colorScheme: const ColorScheme.dark(
       primary: NotionColors.green,
       secondary: NotionColors.purple,
@@ -78,6 +87,114 @@ ThemeData buildGameTheme() {
       ),
     ),
     dividerTheme: const DividerThemeData(color: NotionColors.border),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: ButtonStyle(
+        animationDuration: const Duration(milliseconds: 150),
+        foregroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.hovered)
+              ? NotionColors.textPrimary
+              : NotionColors.textMuted,
+        ),
+        backgroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.hovered)
+              ? NotionColors.surfaceHover
+              : Colors.transparent,
+        ),
+        side: WidgetStateProperty.resolveWith(
+          (states) => BorderSide(
+            color: states.contains(WidgetState.focused)
+                ? _focusRing
+                : NotionColors.border,
+          ),
+        ),
+        overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        ),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: ButtonStyle(
+        animationDuration: const Duration(milliseconds: 150),
+        foregroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.hovered)
+              ? NotionColors.textPrimary
+              : NotionColors.textMuted,
+        ),
+        backgroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.hovered)
+              ? NotionColors.surfaceHover
+              : Colors.transparent,
+        ),
+        overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        ),
+      ),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: ButtonStyle(
+        animationDuration: const Duration(milliseconds: 150),
+        foregroundColor:
+            const WidgetStatePropertyAll(NotionColors.background),
+        backgroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.hovered)
+              ? NotionColors.green.withValues(alpha: 0.9)
+              : NotionColors.green,
+        ),
+        overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        ),
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: NotionColors.surface,
+      isDense: true,
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      hintStyle:
+          const TextStyle(fontSize: 13, color: NotionColors.textFaint),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: const BorderSide(color: NotionColors.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: const BorderSide(color: _focusRing, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: const BorderSide(color: NotionColors.red),
+      ),
+    ),
+    tooltipTheme: TooltipThemeData(
+      waitDuration: const Duration(milliseconds: 400),
+      decoration: BoxDecoration(
+        color: NotionColors.surfaceHover,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: NotionColors.border),
+      ),
+      textStyle: const TextStyle(
+        fontSize: 12,
+        color: NotionColors.textPrimary,
+        fontFamilyFallback: _fontFallback,
+      ),
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: NotionColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(color: NotionColors.border),
+      ),
+    ),
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
+        TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+      },
+    ),
     snackBarTheme: SnackBarThemeData(
       backgroundColor: NotionColors.surfaceHover,
       contentTextStyle: const TextStyle(

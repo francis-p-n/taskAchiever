@@ -1,12 +1,12 @@
-# Life Achiever 🌟
+# lifeOS
 
-Welcome to **Life Achiever**, a comprehensive gamified life-management application that turns your daily routines into rewarding quests. Life Achiever tracks and syncs your tasks, fitness, nutrition, spending, and schedule across desktop and mobile.
+Welcome to **lifeOS**, a comprehensive gamified life-management application that turns your daily routines into rewarding quests. lifeOS tracks and syncs your tasks, fitness, nutrition, spending, and schedule across desktop and mobile.
 
 ---
 
 ## 🛠️ Technology Stack
 
-Life Achiever is built on a modern, offline-first client-server architecture:
+lifeOS is built on a modern, offline-first client-server architecture:
 
 - **Frontend**: [Flutter](https://flutter.dev/) (Compiles to Windows, Android, iOS)
 - **Local Database**: [Isar](https://isar.dev/) (Offline-first NoSQL)

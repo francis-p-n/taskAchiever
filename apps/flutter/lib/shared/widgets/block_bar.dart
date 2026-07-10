@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:life_achiever/core/theme.dart';
+import 'package:life_os/core/theme.dart';
 
 /// Segmented progress bar of discrete blocks ("▮▮▮▮▮▮▮▮▯▯  8/10"),
 /// like the energy bars in the Notion template.

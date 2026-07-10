@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:life_achiever/core/theme.dart';
-import 'package:life_achiever/shared/widgets/block_bar.dart';
-import 'package:life_achiever/shared/widgets/notion_card.dart';
+import 'package:life_os/core/theme.dart';
+import 'package:life_os/shared/widgets/block_bar.dart';
+import 'package:life_os/shared/widgets/notion_card.dart';
 
-/// Small tinted stat callout: emoji + label, large value, optional block bar.
+/// Small tinted stat callout: icon + label, large value, optional block bar.
 /// Used as the summary row at the top of feature screens.
 class MetricCallout extends StatelessWidget {
-  final String emoji;
+  final IconData icon;
   final String label;
   final String value;
   final Color color;
@@ -15,7 +15,7 @@ class MetricCallout extends StatelessWidget {
 
   const MetricCallout({
     super.key,
-    required this.emoji,
+    required this.icon,
     required this.label,
     required this.value,
     required this.color,
@@ -32,7 +32,7 @@ class MetricCallout extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(emoji, style: const TextStyle(fontSize: 12)),
+              Icon(icon, size: 13, color: color),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(

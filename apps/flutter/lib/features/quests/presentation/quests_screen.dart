@@ -1,29 +1,62 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:life_achiever/core/providers.dart';
-import 'package:life_achiever/core/theme.dart';
-import 'package:life_achiever/features/player/application/player_notifier.dart';
-import 'package:life_achiever/features/player/domain/player.dart';
-import 'package:life_achiever/shared/widgets/integration_card.dart';
-import 'package:life_achiever/shared/widgets/notion_card.dart';
+import 'package:lottie/lottie.dart';
+import 'package:life_os/core/providers.dart';
+import 'package:life_os/core/theme.dart';
+import 'package:life_os/features/player/application/player_notifier.dart';
+import 'package:life_os/features/player/domain/player.dart';
+import 'package:life_os/shared/widgets/integration_card.dart';
+import 'package:life_os/shared/widgets/notion_card.dart';
+import 'package:life_os/features/quests/data/quests_repository.dart';
 
 class _QuestEntry {
   final String title;
   final String time;
   final Area area;
   final int xp;
-  bool completed = false;
+  final String? remoteId; // set when the quest lives in the backend DB
+  bool completed;
 
   _QuestEntry({
     required this.title,
     required this.time,
     required this.area,
     required this.xp,
+    this.remoteId,
+    this.completed = false,
   });
+
+  static String _formatTime(DateTime? dt) {
+    if (dt == null) return 'Anytime';
+    final local = dt.toLocal();
+    final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '$hour:$minute ${local.hour < 12 ? 'AM' : 'PM'}';
+  }
+
+  factory _QuestEntry.fromDto(QuestDto dto) => _QuestEntry(
+        title: dto.title,
+        time: _formatTime(dto.dueDate),
+        area: dto.area,
+        xp: dto.xp,
+        remoteId: dto.id,
+        completed: dto.completedAt != null,
+      );
 }
 
-// Mock daily quests until the Isar-backed quest list is wired in.
-final _questsProvider = StateProvider<List<_QuestEntry>>((ref) => [
+// Seeded from the backend quest list; falls back to the offline mock
+// entries until (or unless) the fetch resolves. Watching the remote
+// provider here means the seed is correct regardless of whether the
+// fetch settles before or after this screen first builds.
+final _questsProvider = StateProvider<List<_QuestEntry>>((ref) {
+  final remote = ref.watch(remoteQuestsProvider).valueOrNull;
+  if (remote != null && remote.isNotEmpty) {
+    return remote.map(_QuestEntry.fromDto).toList();
+  }
+  return _fallbackQuests();
+});
+
+List<_QuestEntry> _fallbackQuests() => [
       _QuestEntry(
           title: 'Ginger Tea', time: '7:00 AM', area: Area.care, xp: 5),
       _QuestEntry(
@@ -48,7 +81,7 @@ final _questsProvider = StateProvider<List<_QuestEntry>>((ref) => [
           time: '10:00 PM',
           area: Area.spiritual,
           xp: 5),
-    ]);
+    ];
 
 final _tabProvider = StateProvider<int>((ref) => 0);
 
@@ -69,7 +102,7 @@ class QuestsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('⚔️  Quests'),
+        title: const Text('Quests'),
         actions: [
           IconButton(
             icon: const Icon(Icons.sync, size: 18),
@@ -166,9 +199,10 @@ class QuestsScreen extends ConsumerWidget {
                 },
               ),
             const SizedBox(height: 24),
-            const NotionSectionTitle(emoji: '🧩', title: 'Side Quests'),
+            const NotionSectionTitle(
+                icon: Icons.extension_outlined, title: 'Side Quests'),
             const IntegrationCard(
-              emoji: '✅',
+              icon: Icons.check_circle_outline,
               name: 'Todoist',
               description:
                   'Pull your Todoist tasks in as side quests — complete them to earn bonus XP.',
@@ -209,6 +243,11 @@ class QuestsScreen extends ConsumerWidget {
     quest.completed = true;
     ref.read(_questsProvider.notifier).state =
         List.of(ref.read(_questsProvider));
+
+    // Persist completion to the backend (awards XP/streak in user_stats).
+    if (quest.remoteId != null) {
+      ref.read(questsRepositoryProvider).completeQuest(quest.remoteId!);
+    }
 
     final result =
         ref.read(playerProvider.notifier).gainXp(quest.xp, area: quest.area);
@@ -300,26 +339,63 @@ class _QuestCard extends StatelessWidget {
               ),
             )
           else
-            const Text('✓ Done',
-                style:
-                    TextStyle(fontSize: 11, color: NotionColors.green)),
+            Row(
+              children: [
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: Lottie.asset(
+                    'assets/lottie/success_check.json',
+                    repeat: false,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Text('Done',
+                    style:
+                        TextStyle(fontSize: 11, color: NotionColors.green)),
+              ],
+            ),
         ],
       ),
     );
   }
 }
 
-class _LevelUpDialog extends StatelessWidget {
+class _LevelUpDialog extends StatefulWidget {
   final int newLevel;
 
   const _LevelUpDialog({required this.newLevel});
 
   @override
+  State<_LevelUpDialog> createState() => _LevelUpDialogState();
+}
+
+class _LevelUpDialogState extends State<_LevelUpDialog>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _entrance = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 250),
+  )..forward();
+
+  int get newLevel => widget.newLevel;
+
+  @override
+  void dispose() {
+    _entrance.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Dialog(
+    return ScaleTransition(
+      scale: CurvedAnimation(parent: _entrance, curve: Curves.easeOutBack)
+          .drive(Tween(begin: 0.92, end: 1.0)),
+      child: FadeTransition(
+        opacity: _entrance,
+        child: Dialog(
       backgroundColor: NotionColors.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
         side: const BorderSide(color: NotionColors.border),
       ),
       child: Padding(
@@ -327,8 +403,24 @@ class _LevelUpDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('🎉', style: TextStyle(fontSize: 40)),
-            const SizedBox(height: 12),
+            SizedBox(
+              width: 110,
+              height: 110,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Lottie.asset(
+                    'assets/lottie/confetti_burst.json',
+                    repeat: false,
+                    width: 110,
+                    height: 110,
+                  ),
+                  const Icon(Icons.celebration_outlined,
+                      size: 40, color: NotionColors.yellow),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
             Text(
               'Level Up!',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -351,6 +443,8 @@ class _LevelUpDialog extends StatelessWidget {
               child: const Text('Continue', style: TextStyle(fontSize: 12)),
             ),
           ],
+        ),
+      ),
         ),
       ),
     );

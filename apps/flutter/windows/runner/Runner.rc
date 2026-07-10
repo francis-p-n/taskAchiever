@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.sidequest.achiever" "\0"
-            VALUE "FileDescription", "life_achiever" "\0"
+            VALUE "FileDescription", "lifeOS" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "life_achiever" "\0"
+            VALUE "InternalName", "lifeOS" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.sidequest.achiever. All rights reserved." "\0"
-            VALUE "OriginalFilename", "life_achiever.exe" "\0"
-            VALUE "ProductName", "life_achiever" "\0"
+            VALUE "OriginalFilename", "lifeOS.exe" "\0"
+            VALUE "ProductName", "lifeOS" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

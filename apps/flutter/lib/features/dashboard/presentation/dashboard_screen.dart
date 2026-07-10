@@ -2,12 +2,12 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:life_achiever/core/theme.dart';
-import 'package:life_achiever/features/player/application/player_notifier.dart';
-import 'package:life_achiever/features/player/domain/player.dart';
-import 'package:life_achiever/shared/widgets/block_bar.dart';
-import 'package:life_achiever/shared/widgets/integration_card.dart';
-import 'package:life_achiever/shared/widgets/notion_card.dart';
+import 'package:life_os/core/theme.dart';
+import 'package:life_os/features/player/application/player_notifier.dart';
+import 'package:life_os/features/player/domain/player.dart';
+import 'package:life_os/shared/widgets/block_bar.dart';
+import 'package:life_os/shared/widgets/integration_card.dart';
+import 'package:life_os/shared/widgets/notion_card.dart';
 
 /// Daily XP goal shown on the gold Daily Target card.
 const _dailyTargetXp = 50;
@@ -74,7 +74,7 @@ class _EnergyRow extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Text(e.emoji, style: const TextStyle(fontSize: 13)),
+                Icon(e.icon, size: 14, color: e.color),
                 const SizedBox(width: 6),
                 Text(
                   e.label,
@@ -142,7 +142,11 @@ class _LeftColumn extends ConsumerWidget {
           color: NotionColors.redBg,
           child: Row(
             children: [
-              const Text('🔥', style: TextStyle(fontSize: 13)),
+              const Icon(
+                Icons.local_fire_department_outlined,
+                size: 14,
+                color: NotionColors.red,
+              ),
               const SizedBox(width: 8),
               Text(
                 'LEVEL ${player.level}',
@@ -165,7 +169,8 @@ class _LeftColumn extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 12),
-        const NotionSectionTitle(emoji: '⚡', title: 'Daily Energy'),
+        const NotionSectionTitle(
+            icon: Icons.battery_5_bar_outlined, title: 'Daily Energy'),
         for (final e in Energy.values)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
@@ -176,7 +181,7 @@ class _LeftColumn extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
-                      Text(e.emoji, style: const TextStyle(fontSize: 12)),
+                      Icon(e.icon, size: 13, color: e.color),
                       const SizedBox(width: 6),
                       Text(
                         e.label,
@@ -199,7 +204,8 @@ class _LeftColumn extends ConsumerWidget {
             ),
           ),
         const SizedBox(height: 4),
-        const NotionSectionTitle(emoji: '📅', title: "Today's Report"),
+        const NotionSectionTitle(
+            icon: Icons.calendar_today_outlined, title: "Today's Report"),
         NotionCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,7 +267,7 @@ class _LeftColumn extends ConsumerWidget {
               style: TextStyle(fontSize: 13)),
         ),
         const SizedBox(height: 8),
-        const NotionSectionTitle(emoji: '📆', title: 'Up Next'),
+        const NotionSectionTitle(icon: Icons.event_outlined, title: 'Up Next'),
         NotionCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -331,7 +337,7 @@ class _CenterColumn extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
         NotionSectionTitle(
-          emoji: '⚔️',
+          icon: Icons.checklist_rounded,
           title: "Today's Quests",
           trailing: TextButton(
             onPressed: () => context.go('/quests'),
@@ -383,10 +389,12 @@ class _CenterColumn extends ConsumerWidget {
         ),
         _TodaysQuests(),
         const SizedBox(height: 16),
-        const NotionSectionTitle(emoji: '🔋', title: 'Energy Menu'),
+        const NotionSectionTitle(
+            icon: Icons.battery_charging_full_outlined, title: 'Energy Menu'),
         const _EnergyMenu(),
         const SizedBox(height: 16),
-        const NotionSectionTitle(emoji: '📈', title: 'Monthly Performance'),
+        const NotionSectionTitle(
+            icon: Icons.trending_up_outlined, title: 'Monthly Performance'),
         NotionCard(
           padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
           child: SizedBox(height: 180, child: _PerformanceChart()),
@@ -543,28 +551,28 @@ class _TodaysQuests extends ConsumerWidget {
 class _EnergyMenu extends ConsumerWidget {
   const _EnergyMenu();
 
-  static const _actions = <Energy, List<(String, int)>>{
+  static const _actions = <Energy, List<(IconData, String, int)>>{
     Energy.hp: [
-      ('🍜 Food +1', 1),
-      ('🛏️ Nap +2', 2),
-      ('😴 Sleep +4', 4),
-      ('🏊 Swim +3', 3),
+      (Icons.ramen_dining_outlined, 'Food +1', 1),
+      (Icons.bed_outlined, 'Nap +2', 2),
+      (Icons.nightlight_outlined, 'Sleep +4', 4),
+      (Icons.pool_outlined, 'Swim +3', 3),
     ],
     Energy.mood: [
-      ('🎤 Sing +1', 1),
-      ('👥 Friends +2', 2),
-      ('🎬 Watch Edits +1', 1),
-      ('🚶 Walk +1', 1),
+      (Icons.mic_none_outlined, 'Sing +1', 1),
+      (Icons.group_outlined, 'Friends +2', 2),
+      (Icons.movie_outlined, 'Watch Edits +1', 1),
+      (Icons.directions_walk_outlined, 'Walk +1', 1),
     ],
     Energy.focus: [
-      ('☕ Break +1', 1),
-      ('📚 Study -2', -2),
-      ('📱 Doomscroll -1', -1),
+      (Icons.coffee_outlined, 'Break +1', 1),
+      (Icons.menu_book_outlined, 'Study -2', -2),
+      (Icons.smartphone_outlined, 'Doomscroll -1', -1),
     ],
     Energy.motivation: [
-      ('🌱 Affirmation +1', 1),
-      ('🧑‍🏫 Mentors +1', 1),
-      ('📉 Doomscroll -1', -1),
+      (Icons.spa_outlined, 'Affirmation +1', 1),
+      (Icons.school_outlined, 'Mentors +1', 1),
+      (Icons.smartphone_outlined, 'Doomscroll -1', -1),
     ],
   };
 
@@ -583,8 +591,7 @@ class _EnergyMenu extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
-                      Text(entry.key.emoji,
-                          style: const TextStyle(fontSize: 12)),
+                      Icon(entry.key.icon, size: 13, color: entry.key.color),
                       const SizedBox(width: 6),
                       Text(
                         entry.key.label,
@@ -597,7 +604,7 @@ class _EnergyMenu extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  for (final (label, delta) in entry.value)
+                  for (final (icon, label, delta) in entry.value)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 6),
                       child: InkWell(
@@ -614,14 +621,27 @@ class _EnergyMenu extends ConsumerWidget {
                             ),
                           );
                         },
-                        child: NotionTag(
-                          text: label,
-                          color: delta >= 0
-                              ? entry.key.color
-                              : NotionColors.red,
-                          bgColor: delta >= 0
-                              ? entry.key.bgColor
-                              : NotionColors.redBg,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              icon,
+                              size: 13,
+                              color: delta >= 0
+                                  ? entry.key.color
+                                  : NotionColors.red,
+                            ),
+                            const SizedBox(width: 6),
+                            NotionTag(
+                              text: label,
+                              color: delta >= 0
+                                  ? entry.key.color
+                                  : NotionColors.red,
+                              bgColor: delta >= 0
+                                  ? entry.key.bgColor
+                                  : NotionColors.redBg,
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -703,7 +723,7 @@ class _RightColumn extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const NotionSectionTitle(emoji: '🎮', title: 'Player ID'),
+        const NotionSectionTitle(icon: Icons.badge_outlined, title: 'Player ID'),
         NotionCard(
           color: NotionColors.greenBg.withValues(alpha: 0.4),
           padding: const EdgeInsets.all(16),
@@ -796,7 +816,11 @@ class _RightColumn extends StatelessWidget {
           color: NotionColors.yellowBg,
           child: Column(
             children: [
-              const Text('🌈', style: TextStyle(fontSize: 16)),
+              const Icon(
+                Icons.auto_awesome_outlined,
+                size: 17,
+                color: NotionColors.yellow,
+              ),
               const SizedBox(height: 4),
               Text(
                 '${player.xpToday} / $_dailyTargetXp',
@@ -824,7 +848,8 @@ class _RightColumn extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        const NotionSectionTitle(emoji: '🔁', title: 'Habit Streaks'),
+        const NotionSectionTitle(
+            icon: Icons.repeat_rounded, title: 'Habit Streaks'),
         NotionCard(
           padding: EdgeInsets.zero,
           child: Column(
@@ -838,7 +863,7 @@ class _RightColumn extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        const NotionSectionTitle(emoji: '🗒️', title: 'Task Logs'),
+        const NotionSectionTitle(icon: Icons.notes_outlined, title: 'Task Logs'),
         NotionCard(
           padding: EdgeInsets.zero,
           child: Column(

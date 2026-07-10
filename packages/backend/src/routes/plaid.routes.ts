@@ -1,29 +1,53 @@
 import { FastifyInstance } from 'fastify';
 import { authenticate } from '../middleware/auth';
+import { PlaidService } from '../services/plaid.service';
+
+const NOT_CONFIGURED = {
+  error: 'Plaid not configured — set PLAID_CLIENT_ID and PLAID_SECRET in packages/backend/.env',
+};
 
 export default async function plaidRoutes(fastify: FastifyInstance) {
-  // Generate link token for Flutter app
+  // Generate a Link token for the client to open Plaid Link.
   fastify.post('/api/plaid/create-link-token', { preHandler: authenticate }, async (request, reply) => {
     const user = request.user as { id: number };
-    // Call Plaid API to generate link token for this user
-    return reply.send({ link_token: 'link-sandbox-123456' });
+    if (!PlaidService.configured()) return reply.status(503).send(NOT_CONFIGURED);
+
+    try {
+      return reply.send(await PlaidService.createLinkToken(user.id));
+    } catch (err: any) {
+      return reply.status(502).send({ error: err?.message || 'Plaid link token creation failed' });
+    }
   });
 
-  // Exchange public token and start initial sync job
+  // Exchange the public token from Link, store credentials, run first sync.
   fastify.post('/api/plaid/exchange-public-token', { preHandler: authenticate }, async (request, reply) => {
-    const { publicToken } = request.body as { publicToken: string };
-    // Call Plaid API to exchange for access_token, encrypt it, save to DB
-    // Enqueue 'plaid-sync' job in BullMQ
-    return reply.send({ success: true });
+    const user = request.user as { id: number };
+    const { publicToken } = request.body as { publicToken?: string };
+    if (!publicToken) return reply.status(400).send({ error: 'publicToken is required' });
+    if (!PlaidService.configured()) return reply.status(503).send(NOT_CONFIGURED);
+
+    try {
+      await PlaidService.exchangePublicToken(user.id, publicToken);
+      const sync = await PlaidService.syncTransactions(user.id);
+      return reply.send({ success: true, sync });
+    } catch (err: any) {
+      return reply.status(502).send({ error: err?.message || 'Plaid token exchange failed' });
+    }
   });
 
-  // Plaid Webhook handler
+  // Plaid webhook (public — Plaid calls this). Ack immediately, sync async.
   fastify.post('/api/plaid/webhook', async (request, reply) => {
     const payload = request.body as any;
-    if (payload.webhook_type === 'TRANSACTIONS' && payload.webhook_code === 'SYNC_UPDATES_AVAILABLE') {
-      // Enqueue 'plaid-sync' job for the associated item_id
-      console.log(`Webhook received for item ${payload.item_id}, queuing sync...`);
+    const code = payload?.webhook_code;
+    if (
+      payload?.webhook_type === 'TRANSACTIONS' &&
+      (code === 'SYNC_UPDATES_AVAILABLE' || code === 'DEFAULT_UPDATE') &&
+      payload?.item_id
+    ) {
+      PlaidService.findUserByItemId(payload.item_id)
+        .then((userId) => (userId ? PlaidService.syncTransactions(userId) : null))
+        .catch((err) => fastify.log.error({ err }, 'Plaid webhook sync failed'));
     }
-    return reply.status(200).send();
+    return reply.status(200).send({ received: true });
   });
 }

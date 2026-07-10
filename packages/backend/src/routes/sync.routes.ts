@@ -3,9 +3,7 @@ import { authenticate } from '../middleware/auth';
 import { db } from '../db';
 import { quests, questSteps } from '../db/schema';
 import { eq, gt } from 'drizzle-orm';
-import Redis from 'ioredis';
-
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+import { cache } from '../lib/redis';
 
 export default async function syncRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', authenticate);
@@ -37,7 +35,7 @@ export default async function syncRoutes(fastify: FastifyInstance) {
 
     // Prevent concurrent syncs for the same user domain using Redis Lock
     const lockKey = `sync:lock:${user.id}:quests`;
-    const lock = await redis.set(lockKey, 'locked', 'EX', 30, 'NX');
+    const lock = await cache.setNx(lockKey, 'locked', 30);
     
     if (!lock) {
       return reply.status(409).send({ error: 'Sync already in progress' });
@@ -69,10 +67,10 @@ export default async function syncRoutes(fastify: FastifyInstance) {
         }
       }
 
-      await redis.del(`quests:${user.id}`);
+      await cache.del(`quests:${user.id}`);
       return reply.send({ success: true, timestamp: new Date().toISOString(), results });
     } finally {
-      await redis.del(lockKey);
+      await cache.del(lockKey);
     }
   });
 }

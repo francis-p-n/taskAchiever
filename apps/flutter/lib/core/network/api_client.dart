@@ -1,10 +1,94 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-/// Single Dio instance for the optional sync backend. The app is
-/// local-first: callers must tolerate this host being unreachable.
+const _devEmail = 'mugicianx@gmail.com';
+const _tokenPrefsKey = 'api_auth_token';
+
+/// Attaches a JWT to every request, obtaining one from the backend's dev
+/// login endpoint on first use (single-user desktop app — no login UI).
+/// On a 401 (expired token) it re-authenticates once and retries.
+class _AuthInterceptor extends Interceptor {
+  _AuthInterceptor(this._dio);
+
+  final Dio _dio;
+  String? _token;
+  Future<String?>? _loginInFlight;
+
+  Future<String?> _getToken({bool forceRefresh = false}) async {
+    if (!forceRefresh) {
+      if (_token != null) return _token;
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_tokenPrefsKey);
+      if (_token != null) return _token;
+    }
+
+    // Deduplicate concurrent logins from parallel requests.
+    _loginInFlight ??= _login();
+    try {
+      return await _loginInFlight;
+    } finally {
+      _loginInFlight = null;
+    }
+  }
+
+  Future<String?> _login() async {
+    try {
+      final response = await _dio.post(
+        '/auth/dev',
+        data: {'email': _devEmail},
+        options: Options(headers: {'skip-auth': 'true'}),
+      );
+      final token = response.data['token'] as String?;
+      if (token != null) {
+        _token = token;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_tokenPrefsKey, token);
+      }
+      return token;
+    } on DioException {
+      return null; // Backend unreachable — app is local-first, callers cope.
+    }
+  }
+
+  @override
+  Future<void> onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+    if (options.headers.remove('skip-auth') != null) {
+      return handler.next(options);
+    }
+    final token = await _getToken();
+    if (token != null) {
+      options.headers['Authorization'] = 'Bearer $token';
+    }
+    handler.next(options);
+  }
+
+  @override
+  Future<void> onError(DioException err, ErrorInterceptorHandler handler) async {
+    // Token expired or invalidated: re-login once and retry the request.
+    if (err.response?.statusCode == 401 &&
+        err.requestOptions.headers['retried-auth'] != 'true') {
+      final token = await _getToken(forceRefresh: true);
+      if (token != null) {
+        final options = err.requestOptions
+          ..headers['Authorization'] = 'Bearer $token'
+          ..headers['retried-auth'] = 'true';
+        try {
+          final response = await _dio.fetch(options);
+          return handler.resolve(response);
+        } on DioException catch (retryErr) {
+          return handler.next(retryErr);
+        }
+      }
+    }
+    handler.next(err);
+  }
+}
+
+/// Single Dio instance for the sync backend (Fastify → Neon Postgres). The
+/// app is local-first: callers must tolerate this host being unreachable.
 final dioProvider = Provider<Dio>((ref) {
-  return Dio(
+  final dio = Dio(
     BaseOptions(
       baseUrl: 'http://127.0.0.1:3000/api', // Use 10.0.2.2 for Android emulator if needed later
       connectTimeout: const Duration(seconds: 3),
@@ -14,4 +98,6 @@ final dioProvider = Provider<Dio>((ref) {
       },
     ),
   );
+  dio.interceptors.add(_AuthInterceptor(dio));
+  return dio;
 });

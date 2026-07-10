@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:life_achiever/core/theme.dart';
+import 'package:life_os/core/theme.dart';
 
 /// The four energy meters shown across the top of the template dashboard.
 enum Energy { hp, mood, focus, motivation }
@@ -20,16 +20,16 @@ extension EnergyX on Energy {
     }
   }
 
-  String get emoji {
+  IconData get icon {
     switch (this) {
       case Energy.hp:
-        return '❤️';
+        return Icons.favorite_outline;
       case Energy.mood:
-        return '😊';
+        return Icons.sentiment_satisfied_outlined;
       case Energy.focus:
-        return '🎯';
+        return Icons.center_focus_strong_outlined;
       case Energy.motivation:
-        return '⚡';
+        return Icons.bolt_outlined;
     }
   }
 

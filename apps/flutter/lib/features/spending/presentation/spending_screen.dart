@@ -1,10 +1,10 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:life_achiever/core/theme.dart';
-import 'package:life_achiever/features/spending/data/spending_repository.dart';
-import 'package:life_achiever/shared/widgets/metric_callout.dart';
-import 'package:life_achiever/shared/widgets/notion_card.dart';
+import 'package:life_os/core/theme.dart';
+import 'package:life_os/features/spending/data/spending_repository.dart';
+import 'package:life_os/shared/widgets/metric_callout.dart';
+import 'package:life_os/shared/widgets/notion_card.dart';
 
 /// Category slices for the monthly breakdown, in Notion's muted palette.
 const _categories = <(String, double, Color, Color)>[
@@ -22,7 +22,7 @@ class SpendingScreen extends ConsumerWidget {
     final spendingData = ref.watch(recentSpendingProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('💰  Gold')),
+      appBar: AppBar(title: const Text('Gold')),
       body: spendingData.when(
         data: (transactions) => _buildContent(context, transactions),
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -37,14 +37,14 @@ class SpendingScreen extends ConsumerWidget {
         const MetricRow(
           children: [
             MetricCallout(
-              emoji: '💸',
+              icon: Icons.payments_outlined,
               label: 'Spent Today',
               value: '\$45.00',
               color: NotionColors.red,
               bgColor: NotionColors.redBg,
             ),
             MetricCallout(
-              emoji: '📆',
+              icon: Icons.event_outlined,
               label: 'This Month',
               value: '\$1,240',
               color: NotionColors.yellow,
@@ -52,7 +52,7 @@ class SpendingScreen extends ConsumerWidget {
               progress: 0.62,
             ),
             MetricCallout(
-              emoji: '🏦',
+              icon: Icons.account_balance_outlined,
               label: 'Budget Left',
               value: '\$760',
               color: NotionColors.green,
@@ -61,7 +61,8 @@ class SpendingScreen extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 20),
-        const NotionSectionTitle(emoji: '📊', title: 'Monthly Breakdown'),
+        const NotionSectionTitle(
+            icon: Icons.bar_chart_rounded, title: 'Monthly Breakdown'),
         NotionCard(
           padding: const EdgeInsets.all(20),
           child: MediaQuery.of(context).size.width > 560
@@ -82,7 +83,7 @@ class SpendingScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 20),
         NotionSectionTitle(
-          emoji: '🧾',
+          icon: Icons.receipt_long_outlined,
           title: 'Recent Transactions',
           trailing: TextButton.icon(
             onPressed: () {},

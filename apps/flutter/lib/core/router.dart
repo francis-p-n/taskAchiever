@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:life_achiever/features/dashboard/presentation/dashboard_screen.dart';
-import 'package:life_achiever/features/dashboard/presentation/main_layout.dart';
-import 'package:life_achiever/features/quests/presentation/quests_screen.dart';
-import 'package:life_achiever/features/fitness/presentation/fitness_screen.dart';
-import 'package:life_achiever/features/food/presentation/food_screen.dart';
-import 'package:life_achiever/features/spending/presentation/spending_screen.dart';
-import 'package:life_achiever/features/schedule/presentation/schedule_screen.dart';
+import 'package:life_os/features/dashboard/presentation/dashboard_screen.dart';
+import 'package:life_os/features/dashboard/presentation/main_layout.dart';
+import 'package:life_os/features/quests/presentation/quests_screen.dart';
+import 'package:life_os/features/fitness/presentation/fitness_screen.dart';
+import 'package:life_os/features/food/presentation/food_screen.dart';
+import 'package:life_os/features/spending/presentation/spending_screen.dart';
+import 'package:life_os/features/schedule/presentation/schedule_screen.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();

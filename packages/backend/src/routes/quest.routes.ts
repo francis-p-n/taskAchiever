@@ -17,6 +17,12 @@ export default async function questRoutes(fastify: FastifyInstance) {
     return reply.status(201).send(quest);
   });
 
+  fastify.get('/api/stats', async (request, reply) => {
+    const user = request.user as { id: number };
+    const stats = await QuestService.getStats(user.id);
+    return reply.send(stats || {});
+  });
+
   fastify.post('/api/quests/:id/complete', async (request, reply) => {
     const user = request.user as { id: number };
     const { id } = request.params as { id: string };

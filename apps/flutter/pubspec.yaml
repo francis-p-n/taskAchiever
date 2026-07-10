@@ -1,5 +1,5 @@
-name: life_achiever
-description: "A new Flutter project."
+name: life_os
+description: "lifeOS — gamified life dashboard."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -45,6 +45,7 @@ dependencies:
   connectivity_plus: ^7.1.1
   workmanager: ^0.9.0+3
   flutter_riverpod: ^2.6.1
+  lottie: ^3.1.2
 
 dev_dependencies:
   flutter_test:
@@ -69,6 +70,9 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/lottie/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

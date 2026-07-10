@@ -1,13 +1,11 @@
 import { eq, and } from 'drizzle-orm';
 import { db } from '../db';
 import { quests, questSteps, userStats } from '../db/schema';
-import Redis from 'ioredis';
-
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+import { cache } from '../lib/redis';
 
 export class QuestService {
   static async getQuests(userId: number) {
-    const cached = await redis.get(`quests:${userId}`);
+    const cached = await cache.get(`quests:${userId}`);
     if (cached) return JSON.parse(cached);
 
     const userQuests = await db.query.quests.findMany({
@@ -17,8 +15,21 @@ export class QuestService {
       }
     });
 
-    await redis.set(`quests:${userId}`, JSON.stringify(userQuests), 'EX', 300);
+    await cache.setEx(`quests:${userId}`, JSON.stringify(userQuests), 300);
     return userQuests;
+  }
+
+  static async getStats(userId: number) {
+    const cached = await cache.get(`cache:stats:${userId}`);
+    if (cached) return JSON.parse(cached);
+
+    const stats = await db.query.userStats.findFirst({
+      where: eq(userStats.userId, userId),
+    });
+    if (stats) {
+      await cache.setEx(`cache:stats:${userId}`, JSON.stringify(stats), 300);
+    }
+    return stats;
   }
 
   static async createQuest(userId: number, data: any) {
@@ -42,7 +53,7 @@ export class QuestService {
       await db.insert(questSteps).values(stepsToInsert);
     }
 
-    await redis.del(`quests:${userId}`);
+    await cache.del(`quests:${userId}`);
     return this.getQuestById(userId, quest.id);
   }
 
@@ -65,6 +76,7 @@ export class QuestService {
     });
 
     if (!quest) throw new Error('Quest not found');
+    if (quest.completedAt) return quest; // idempotent: no double XP
 
     const [updatedQuest] = await db.update(quests).set({
       completedAt: new Date(),
@@ -72,49 +84,57 @@ export class QuestService {
     }).where(eq(quests.id, questId)).returning();
 
     await this.updateUserStats(userId, quest.difficulty || 1);
-    await redis.del(`quests:${userId}`);
+    await cache.del(`quests:${userId}`);
     return updatedQuest;
   }
 
   private static async updateUserStats(userId: number, difficulty: number) {
-    const stats = await db.query.userStats.findFirst({ where: eq(userStats.userId, userId) });
-    if (!stats) return;
+    // Row-locked transaction: concurrent completions (the client fires
+    // these without awaiting) must not lose XP to read-modify-write races.
+    await db.transaction(async (tx) => {
+      const [stats] = await tx
+        .select()
+        .from(userStats)
+        .where(eq(userStats.userId, userId))
+        .for('update');
+      if (!stats) return;
 
-    const xpEarned = difficulty * 10;
-    const today = new Date().toISOString().split('T')[0];
-    const lastActive = stats.lastActiveDate ? new Date(stats.lastActiveDate).toISOString().split('T')[0] : null;
+      const xpEarned = difficulty * 10;
+      const today = new Date().toISOString().split('T')[0];
+      const lastActive = stats.lastActiveDate ? new Date(stats.lastActiveDate).toISOString().split('T')[0] : null;
 
-    let newStreak = stats.currentStreak || 0;
-    let freezes = stats.streakFreezes || 0;
+      let newStreak = stats.currentStreak || 0;
+      let freezes = stats.streakFreezes || 0;
 
-    if (lastActive) {
-      const diffDays = Math.floor((new Date(today).getTime() - new Date(lastActive).getTime()) / (1000 * 60 * 60 * 24));
-      if (diffDays === 1) {
-        newStreak += 1;
-      } else if (diffDays > 1) {
-        const missed = diffDays - 1;
-        if (freezes >= missed) {
-          freezes -= missed;
+      if (lastActive) {
+        const diffDays = Math.floor((new Date(today).getTime() - new Date(lastActive).getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays === 1) {
           newStreak += 1;
-        } else {
-          newStreak = 1;
+        } else if (diffDays > 1) {
+          const missed = diffDays - 1;
+          if (freezes >= missed) {
+            freezes -= missed;
+            newStreak += 1;
+          } else {
+            newStreak = 1;
+          }
         }
+      } else {
+        newStreak = 1;
       }
-    } else {
-      newStreak = 1;
-    }
 
-    const longestStreak = Math.max(stats.longestStreak || 0, newStreak);
+      const longestStreak = Math.max(stats.longestStreak || 0, newStreak);
 
-    await db.update(userStats).set({
-      totalCompleted: (stats.totalCompleted || 0) + 1,
-      experiencePoints: (stats.experiencePoints || 0) + xpEarned,
-      currentStreak: newStreak,
-      longestStreak,
-      streakFreezes: freezes,
-      lastActiveDate: new Date()
-    }).where(eq(userStats.userId, userId));
+      await tx.update(userStats).set({
+        totalCompleted: (stats.totalCompleted || 0) + 1,
+        experiencePoints: (stats.experiencePoints || 0) + xpEarned,
+        currentStreak: newStreak,
+        longestStreak,
+        streakFreezes: freezes,
+        lastActiveDate: new Date()
+      }).where(eq(userStats.userId, userId));
+    });
 
-    await redis.del(`cache:stats:${userId}`);
+    await cache.del(`cache:stats:${userId}`);
   }
 }
