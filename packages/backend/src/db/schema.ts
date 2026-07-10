@@ -22,6 +22,8 @@ export const quests = pgTable('quests', {
   todoistSyncedAt: timestamp('todoist_synced_at'), // last state pushed to Todoist
   completedAt: timestamp('completed_at'),
   fulfillment: integer('fulfillment'),
+  archivedAt: timestamp('archived_at'), // hidden from the active list, kept for history
+  reminderSentAt: timestamp('reminder_sent_at'), // last due-soon push, avoids repeats
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (t) => ({
@@ -80,8 +82,22 @@ export const userSettings = pgTable('user_settings', {
   stravaLastSyncAt: timestamp('strava_last_sync_at'),
   syncEnabled: boolean('sync_enabled').default(true),
   yearlyGoal: integer('yearly_goal').default(52),
+  remindersEnabled: boolean('reminders_enabled').default(true),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+// FCM registration tokens; one row per installed app instance.
+export const deviceTokens = pgTable('device_tokens', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  token: text('token').notNull(),
+  platform: text('platform'), // 'android' | 'ios' | 'web'
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  lastSeenAt: timestamp('last_seen_at').defaultNow().notNull(),
+}, (t) => ({
+  tokenIdx: uniqueIndex('device_tokens_token_idx').on(t.token),
+  userIdx: index('device_tokens_user_idx').on(t.userId),
+}));
 
 export const healthMetrics = pgTable('health_metrics', {
   id: serial('id').primaryKey(),
