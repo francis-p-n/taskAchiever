@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:life_os/core/theme.dart';
+import 'package:life_os/features/dashboard/data/summary_repository.dart';
 import 'package:life_os/features/player/application/player_notifier.dart';
+import 'package:life_os/features/player/data/stats_repository.dart';
 import 'package:life_os/features/player/domain/player.dart';
 import 'package:life_os/features/quests/application/quest_actions.dart';
 import 'package:life_os/features/quests/application/quests_notifier.dart';
@@ -428,7 +430,7 @@ class _CenterColumn extends ConsumerWidget {
         _TodaysQuests(),
         const SizedBox(height: 16),
         const NotionSectionTitle(
-            icon: Icons.trending_up_outlined, title: 'Monthly Performance'),
+            icon: Icons.trending_up_outlined, title: 'Weekly XP Trend'),
         NotionCard(
           padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
           child: SizedBox(height: 180, child: _PerformanceChart()),
@@ -578,21 +580,18 @@ class _TodaysQuests extends ConsumerWidget {
   }
 }
 
-class _PerformanceChart extends StatelessWidget {
+/// Real XP-per-week line from /api/summary/trends. Offline (or empty
+/// history) falls back to a flat zero line rather than fake numbers.
+class _PerformanceChart extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
-    const spots = [
-      FlSpot(0, 1),
-      FlSpot(1, 3),
-      FlSpot(2, 2),
-      FlSpot(3, 6),
-      FlSpot(4, 2),
-      FlSpot(5, 4),
-      FlSpot(6, 1),
-      FlSpot(7, 5),
-      FlSpot(8, 3),
-      FlSpot(9, 7),
-    ];
+  Widget build(BuildContext context, WidgetRef ref) {
+    final weeks = ref.watch(trendsProvider).valueOrNull;
+    final spots = (weeks == null || weeks.isEmpty)
+        ? [for (var i = 0; i < 8; i++) FlSpot(i.toDouble(), 0)]
+        : [
+            for (var i = 0; i < weeks.length; i++)
+              FlSpot(i.toDouble(), weeks[i].xpEarned.toDouble()),
+          ];
 
     return LineChart(
       LineChartData(
@@ -637,13 +636,13 @@ class _PerformanceChart extends StatelessWidget {
 // Right column: Player ID card, daily target, habit streaks, task logs
 // ---------------------------------------------------------------------------
 
-class _RightColumn extends StatelessWidget {
+class _RightColumn extends ConsumerWidget {
   final Player player;
 
   const _RightColumn({required this.player});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -785,19 +784,12 @@ class _RightColumn extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         const NotionSectionTitle(
-            icon: Icons.repeat_rounded, title: 'Habit Streaks'),
-        NotionCard(
-          padding: EdgeInsets.zero,
-          child: Column(
-            children: [
-              _habitRow('Morning Gym', 'Streak 4', NotionColors.green,
-                  NotionColors.greenBg),
-              const Divider(height: 1),
-              _habitRow('Morning Meditation', 'Streak 7', NotionColors.purple,
-                  NotionColors.purpleBg),
-            ],
-          ),
-        ),
+            icon: Icons.calendar_view_week_outlined, title: 'This Week'),
+        const _WeeklySummaryCard(),
+        const SizedBox(height: 16),
+        const NotionSectionTitle(
+            icon: Icons.local_fire_department_outlined, title: 'Streak'),
+        const _StreakCard(),
         const SizedBox(height: 16),
         const NotionSectionTitle(icon: Icons.notes_outlined, title: 'Task Logs'),
         NotionCard(
@@ -851,20 +843,6 @@ class _RightColumn extends StatelessWidget {
     );
   }
 
-  static Widget _habitRow(
-      String name, String streak, Color color, Color bg) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(name, style: const TextStyle(fontSize: 12)),
-          NotionTag(text: streak, color: color, bgColor: bg),
-        ],
-      ),
-    );
-  }
-
   static Widget _logRow(String name, String tag, Color color, Color bg) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -873,6 +851,143 @@ class _RightColumn extends StatelessWidget {
         children: [
           Text(name, style: const TextStyle(fontSize: 12)),
           NotionTag(text: tag, color: color, bgColor: bg),
+        ],
+      ),
+    );
+  }
+}
+
+/// Goal progress at a glance: quests, XP, activity and spend for the running
+/// week, with an active-days bar (7/7 = perfect week). Data from
+/// /api/summary/weekly; hidden numbers degrade to zero when offline.
+class _WeeklySummaryCard extends ConsumerWidget {
+  const _WeeklySummaryCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summary = ref.watch(weeklySummaryProvider).valueOrNull;
+
+    if (summary == null) {
+      return const NotionCard(
+        child: Text(
+          'Weekly summary unavailable offline.',
+          style: TextStyle(fontSize: 12, color: NotionColors.textFaint),
+        ),
+      );
+    }
+
+    Widget row(IconData icon, String label, String value) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            children: [
+              Icon(icon, size: 13, color: NotionColors.textMuted),
+              const SizedBox(width: 8),
+              Text(label,
+                  style: const TextStyle(
+                      fontSize: 12, color: NotionColors.textMuted)),
+              const Spacer(),
+              Text(value,
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600)),
+            ],
+          ),
+        );
+
+    return NotionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          row(Icons.checklist_rounded, 'Quests done',
+              '${summary.questsCompleted}'),
+          row(Icons.auto_awesome_outlined, 'XP earned', '${summary.xpEarned}'),
+          row(Icons.fitness_center_outlined, 'Workouts',
+              '${summary.workouts}'),
+          if (summary.avgDailySteps > 0)
+            row(Icons.directions_walk_outlined, 'Steps / day',
+                '${summary.avgDailySteps}'),
+          if (summary.avgDailyCalories > 0)
+            row(Icons.restaurant_outlined, 'Kcal / day',
+                '${summary.avgDailyCalories}'),
+          if (summary.spendingCents > 0)
+            row(Icons.payments_outlined, 'Spent',
+                '\$${(summary.spendingCents / 100).toStringAsFixed(2)}'),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Text('Active days ',
+                  style: TextStyle(
+                      fontSize: 11, color: NotionColors.textMuted)),
+              Expanded(
+                child: BlockBar(
+                  value: summary.activeDays.clamp(0, 7),
+                  max: 7,
+                  color: NotionColors.green,
+                  showLabel: false,
+                ),
+              ),
+              Text(' ${summary.activeDays}/7',
+                  style: const TextStyle(
+                      fontSize: 11, color: NotionColors.textMuted)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Real quest streak from user_stats, with an "at risk" warning until
+/// something is completed today.
+class _StreakCard extends ConsumerWidget {
+  const _StreakCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stats = ref.watch(userStatsProvider).valueOrNull;
+
+    if (stats == null) {
+      return const NotionCard(
+        child: Text(
+          'Streak unavailable offline.',
+          style: TextStyle(fontSize: 12, color: NotionColors.textFaint),
+        ),
+      );
+    }
+
+    final atRisk = stats.streakAtRisk && stats.currentStreak > 0;
+    return NotionCard(
+      color: atRisk ? NotionColors.redBg : null,
+      child: Row(
+        children: [
+          Icon(
+            Icons.local_fire_department,
+            size: 22,
+            color: atRisk ? NotionColors.red : NotionColors.orange,
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${stats.currentStreak} day${stats.currentStreak == 1 ? '' : 's'}',
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+              Text(
+                'Longest ${stats.longestStreak}'
+                '${stats.streakFreezes > 0 ? '  •  ${stats.streakFreezes} freeze${stats.streakFreezes == 1 ? '' : 's'}' : ''}',
+                style: const TextStyle(
+                    fontSize: 11, color: NotionColors.textMuted),
+              ),
+            ],
+          ),
+          const Spacer(),
+          if (atRisk)
+            const NotionTag(
+              text: 'At risk',
+              color: NotionColors.red,
+              bgColor: NotionColors.redBg,
+            ),
         ],
       ),
     );

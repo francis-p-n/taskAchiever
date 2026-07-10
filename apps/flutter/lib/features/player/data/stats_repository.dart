@@ -9,6 +9,7 @@ class UserStatsDto {
   final int currentStreak;
   final int longestStreak;
   final int streakFreezes;
+  final bool streakAtRisk; // true = nothing completed yet today
 
   UserStatsDto({
     required this.experiencePoints,
@@ -16,6 +17,7 @@ class UserStatsDto {
     required this.currentStreak,
     required this.longestStreak,
     required this.streakFreezes,
+    this.streakAtRisk = false,
   });
 
   factory UserStatsDto.fromJson(Map<String, dynamic> json) => UserStatsDto(
@@ -24,6 +26,7 @@ class UserStatsDto {
         currentStreak: (json['currentStreak'] as num?)?.toInt() ?? 0,
         longestStreak: (json['longestStreak'] as num?)?.toInt() ?? 0,
         streakFreezes: (json['streakFreezes'] as num?)?.toInt() ?? 0,
+        streakAtRisk: json['streakAtRisk'] == true,
       );
 }
 
@@ -46,6 +49,11 @@ class StatsRepository {
 
 final statsRepositoryProvider = Provider<StatsRepository>((ref) {
   return StatsRepository(ref.watch(dioProvider));
+});
+
+/// Lifetime stats (streaks included) for the dashboard; null when offline.
+final userStatsProvider = FutureProvider<UserStatsDto?>((ref) {
+  return ref.watch(statsRepositoryProvider).fetchStats();
 });
 
 /// Fetches server stats at startup and makes the backend's lifetime XP the

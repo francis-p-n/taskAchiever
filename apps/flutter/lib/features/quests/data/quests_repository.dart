@@ -111,6 +111,54 @@ class QuestsRepository {
       return false;
     }
   }
+
+  /// Hides a quest from the active list, keeping it for history.
+  Future<bool> archiveQuest(String id) async {
+    try {
+      await _dio.post('/quests/$id/archive');
+      return true;
+    } on DioException {
+      return false;
+    }
+  }
+
+  /// Permanently removes a quest and its steps.
+  Future<bool> deleteQuest(String id) async {
+    try {
+      await _dio.delete('/quests/$id');
+      return true;
+    } on DioException {
+      return false;
+    }
+  }
+
+  /// Asks the AI to break the quest into actionable steps. Returns the
+  /// refreshed quest, or null when offline / not found.
+  Future<QuestDto?> generateSteps(String id) async {
+    try {
+      final response = await _dio.post(
+        '/quests/$id/generate-steps',
+        options: Options(
+          // One Claude round-trip — the default 3s receive timeout is too slim.
+          receiveTimeout: const Duration(seconds: 30),
+        ),
+      );
+      final quest = response.data['quest'];
+      return quest is Map<String, dynamic> ? QuestDto.fromJson(quest) : null;
+    } on DioException {
+      return null;
+    }
+  }
+
+  /// Amends the (auto-generated) difficulty.
+  Future<bool> setDifficulty(String id, int difficulty) async {
+    try {
+      await _dio.patch('/quests/$id', data: {'difficulty': difficulty});
+      return true;
+    } on DioException {
+      return false;
+    }
+  }
 }
 
 final questsRepositoryProvider = Provider<QuestsRepository>((ref) {

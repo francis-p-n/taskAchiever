@@ -138,6 +138,10 @@ class QuestsScreen extends ConsumerWidget {
                     quest: quest,
                     onComplete: () => completeQuest(context, ref, quest),
                     onUndo: () => undoQuest(context, ref, quest),
+                    onAction: quest.remoteId == null
+                        ? null
+                        : (action) =>
+                            _handleQuestAction(context, ref, quest, action),
                   );
                 },
               ),
@@ -174,6 +178,10 @@ class QuestsScreen extends ConsumerWidget {
                     quest: quest,
                     onComplete: () => completeQuest(context, ref, quest),
                     onUndo: () => undoQuest(context, ref, quest),
+                    onAction: quest.remoteId == null
+                        ? null
+                        : (action) =>
+                            _handleQuestAction(context, ref, quest, action),
                   );
                 },
               ),
@@ -225,6 +233,104 @@ class QuestsScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// Server-backed card actions from the ⋯ menu.
+  Future<void> _handleQuestAction(
+    BuildContext context,
+    WidgetRef ref,
+    QuestEntry quest,
+    String action,
+  ) async {
+    final repo = ref.read(questsRepositoryProvider);
+    final messenger = ScaffoldMessenger.of(context);
+    final id = quest.remoteId!;
+
+    switch (action) {
+      case 'steps':
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Generating action steps…')),
+        );
+        final updated = await repo.generateSteps(id);
+        ref.invalidate(remoteQuestsProvider);
+        messenger.showSnackBar(SnackBar(
+          content: Text(updated == null
+              ? 'Could not generate steps (offline?)'
+              : '${updated.steps.length} action steps ready'),
+        ));
+
+      case 'difficulty':
+        final choice = await showDialog<int>(
+          context: context,
+          builder: (context) => SimpleDialog(
+            backgroundColor: NotionColors.surface,
+            title: const Text('Difficulty', style: TextStyle(fontSize: 14)),
+            children: [
+              for (var d = 1; d <= 5; d++)
+                SimpleDialogOption(
+                  onPressed: () => Navigator.of(context).pop(d),
+                  child: Text(
+                    '$d  (+${d * 10} XP)${quest.xp == d * 10 ? '   • current' : ''}',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+            ],
+          ),
+        );
+        if (choice == null) return;
+        final ok = await repo.setDifficulty(id, choice);
+        ref.invalidate(remoteQuestsProvider);
+        messenger.showSnackBar(SnackBar(
+          content: Text(ok
+              ? 'Difficulty set to $choice'
+              : 'Could not update difficulty (offline?)'),
+        ));
+
+      case 'archive':
+        final ok = await repo.archiveQuest(id);
+        ref.invalidate(remoteQuestsProvider);
+        messenger.showSnackBar(SnackBar(
+          content: Text(ok
+              ? '"${quest.title}" archived'
+              : 'Could not archive (offline?)'),
+        ));
+
+      case 'delete':
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: NotionColors.surface,
+            title: const Text('Delete quest?', style: TextStyle(fontSize: 15)),
+            content: Text(
+              '"${quest.title}" and its steps will be permanently removed.',
+              style: const TextStyle(
+                  fontSize: 13, color: NotionColors.textMuted),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel',
+                    style: TextStyle(
+                        fontSize: 13, color: NotionColors.textMuted)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Delete',
+                    style:
+                        TextStyle(fontSize: 13, color: NotionColors.red)),
+              ),
+            ],
+          ),
+        );
+        if (confirmed != true) return;
+        final ok = await repo.deleteQuest(id);
+        ref.invalidate(remoteQuestsProvider);
+        messenger.showSnackBar(SnackBar(
+          content: Text(ok
+              ? '"${quest.title}" deleted'
+              : 'Could not delete (offline?)'),
+        ));
+    }
   }
 
   Future<void> _openNewQuestDialog(BuildContext context, WidgetRef ref) async {
@@ -458,11 +564,16 @@ class QuestCard extends StatelessWidget {
   final VoidCallback onComplete;
   final VoidCallback onUndo;
 
+  /// Server-backed actions ('steps' | 'difficulty' | 'archive' | 'delete');
+  /// the ⋯ menu only shows when this is set (i.e. the quest has a remote id).
+  final void Function(String action)? onAction;
+
   const QuestCard({
     super.key,
     required this.quest,
     required this.onComplete,
     required this.onUndo,
+    this.onAction,
   });
 
   @override
@@ -478,19 +589,66 @@ class QuestCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                quest.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  decoration:
-                      quest.completed ? TextDecoration.lineThrough : null,
-                  color: quest.completed
-                      ? NotionColors.textFaint
-                      : NotionColors.textPrimary,
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      quest.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        decoration: quest.completed
+                            ? TextDecoration.lineThrough
+                            : null,
+                        color: quest.completed
+                            ? NotionColors.textFaint
+                            : NotionColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  if (onAction != null)
+                    SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: PopupMenuButton<String>(
+                        padding: EdgeInsets.zero,
+                        iconSize: 14,
+                        icon: const Icon(Icons.more_horiz,
+                            color: NotionColors.textMuted),
+                        color: NotionColors.surfaceHover,
+                        onSelected: onAction,
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(
+                            value: 'steps',
+                            height: 36,
+                            child: Text('AI action steps',
+                                style: TextStyle(fontSize: 12)),
+                          ),
+                          PopupMenuItem(
+                            value: 'difficulty',
+                            height: 36,
+                            child: Text('Set difficulty',
+                                style: TextStyle(fontSize: 12)),
+                          ),
+                          PopupMenuItem(
+                            value: 'archive',
+                            height: 36,
+                            child: Text('Archive',
+                                style: TextStyle(fontSize: 12)),
+                          ),
+                          PopupMenuItem(
+                            value: 'delete',
+                            height: 36,
+                            child: Text('Delete',
+                                style: TextStyle(
+                                    fontSize: 12, color: NotionColors.red)),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: 4),
               Text(
