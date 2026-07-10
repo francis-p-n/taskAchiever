@@ -1,6 +1,9 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:life_os/core/theme.dart';
 import 'package:life_os/features/food/data/food_repository.dart';
 import 'package:life_os/shared/widgets/block_bar.dart';
@@ -222,14 +225,14 @@ class FoodScreen extends ConsumerWidget {
   }
 }
 
-class _LogMealSheet extends StatefulWidget {
+class _LogMealSheet extends ConsumerStatefulWidget {
   const _LogMealSheet();
 
   @override
-  State<_LogMealSheet> createState() => _LogMealSheetState();
+  ConsumerState<_LogMealSheet> createState() => _LogMealSheetState();
 }
 
-class _LogMealSheetState extends State<_LogMealSheet> {
+class _LogMealSheetState extends ConsumerState<_LogMealSheet> {
   static const _mealTypes = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
   final _formKey = GlobalKey<FormState>();
@@ -238,6 +241,62 @@ class _LogMealSheetState extends State<_LogMealSheet> {
   final _carbsController = TextEditingController();
   final _fatsController = TextEditingController();
   String _mealType = 'Breakfast';
+  bool _analyzing = false;
+  String? _analyzedName;
+
+  Future<void> _analyzePhoto() async {
+    // Phones open the camera; desktop opens a file picker.
+    final source = (Platform.isAndroid || Platform.isIOS)
+        ? ImageSource.camera
+        : ImageSource.gallery;
+    final picked = await ImagePicker().pickImage(
+      source: source,
+      maxWidth: 1568, // plenty for vision, keeps the upload small
+      maxHeight: 1568,
+      imageQuality: 85,
+    );
+    if (picked == null || !mounted) return;
+
+    setState(() {
+      _analyzing = true;
+      _analyzedName = null;
+    });
+
+    final bytes = await picked.readAsBytes();
+    final name = picked.name.toLowerCase();
+    final mediaType = name.endsWith('.png')
+        ? 'image/png'
+        : name.endsWith('.webp')
+            ? 'image/webp'
+            : 'image/jpeg';
+
+    final estimate = await ref
+        .read(foodRepositoryProvider)
+        .analyzePhoto(bytes, mediaType: mediaType);
+    if (!mounted) return;
+
+    setState(() => _analyzing = false);
+    if (estimate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Could not analyze the photo — backend offline or AI not configured.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _analyzedName = '${estimate.mealName} (${estimate.confidence} confidence)';
+      if (_mealTypes.contains(estimate.mealType)) {
+        _mealType = estimate.mealType;
+      }
+      _caloriesController.text = '${estimate.calories}';
+      _proteinController.text = '${estimate.protein}';
+      _carbsController.text = '${estimate.carbs}';
+      _fatsController.text = '${estimate.fats}';
+    });
+  }
 
   @override
   void dispose() {
@@ -319,7 +378,43 @@ class _LogMealSheetState extends State<_LogMealSheet> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
+                  // Photo → auto-filled calories and macros, editable below.
+                  SizedBox(
+                    width: double.infinity,
+                    height: 34,
+                    child: OutlinedButton.icon(
+                      onPressed: _analyzing ? null : _analyzePhoto,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: NotionColors.textPrimary,
+                        side: const BorderSide(color: NotionColors.border),
+                      ),
+                      icon: _analyzing
+                          ? const SizedBox(
+                              width: 13,
+                              height: 13,
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.photo_camera_outlined, size: 14),
+                      label: Text(
+                        _analyzing
+                            ? 'Analyzing photo…'
+                            : 'Snap a photo — auto-fill calories & macros',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ),
+                  if (_analyzedName != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        'Detected: $_analyzedName',
+                        style: const TextStyle(
+                            fontSize: 11, color: NotionColors.textMuted),
+                      ),
+                    ),
+                  const SizedBox(height: 14),
                   _fieldLabel('Meal type'),
                   DropdownButtonFormField<String>(
                     initialValue: _mealType,

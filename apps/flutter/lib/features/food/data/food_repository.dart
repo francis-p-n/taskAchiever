@@ -1,6 +1,40 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_os/core/network/api_client.dart';
+
+/// AI estimate for a meal photo, shown in the log-meal form to confirm.
+class MealEstimate {
+  final String mealName;
+  final String mealType;
+  final int calories;
+  final int protein;
+  final int carbs;
+  final int fats;
+  final String confidence;
+
+  const MealEstimate({
+    required this.mealName,
+    required this.mealType,
+    required this.calories,
+    required this.protein,
+    required this.carbs,
+    required this.fats,
+    required this.confidence,
+  });
+
+  factory MealEstimate.fromJson(Map<String, dynamic> json) => MealEstimate(
+        mealName: json['mealName']?.toString() ?? 'Meal',
+        mealType: json['mealType']?.toString() ?? 'Snack',
+        calories: (json['calories'] as num?)?.toInt() ?? 0,
+        protein: (json['protein'] as num?)?.toInt() ?? 0,
+        carbs: (json['carbs'] as num?)?.toInt() ?? 0,
+        fats: (json['fats'] as num?)?.toInt() ?? 0,
+        confidence: json['confidence']?.toString() ?? 'low',
+      );
+}
 
 /// One meal log entry from GET /food/today, parsed defensively so a
 /// missing or oddly-typed field never crashes the screen.
@@ -74,6 +108,28 @@ class FoodRepository {
       return true;
     } on DioException {
       return false;
+    }
+  }
+
+  /// Sends a meal photo to the backend for a calorie/macro estimate.
+  /// Returns null (with no throw) when offline, unconfigured, or on any
+  /// analysis failure — the form just stays manual.
+  Future<MealEstimate?> analyzePhoto(Uint8List bytes,
+      {required String mediaType}) async {
+    try {
+      final response = await _dio.post(
+        '/food/analyze',
+        data: {'image': base64Encode(bytes), 'mediaType': mediaType},
+        options: Options(
+          receiveTimeout: const Duration(seconds: 60),
+          sendTimeout: const Duration(seconds: 60),
+        ),
+      );
+      final data = response.data;
+      if (data is! Map<String, dynamic>) return null;
+      return MealEstimate.fromJson(data);
+    } on DioException {
+      return null;
     }
   }
 }

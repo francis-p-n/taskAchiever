@@ -28,6 +28,80 @@ const STEPS_SCHEMA = {
   additionalProperties: false,
 };
 
+const MEAL_SCHEMA = {
+  type: 'object' as const,
+  properties: {
+    mealName: { type: 'string' as const, description: 'Short name of the dish(es)' },
+    mealType: {
+      type: 'string' as const,
+      enum: ['Breakfast', 'Lunch', 'Dinner', 'Snack'],
+      description: 'Best guess at which meal this is',
+    },
+    calories: { type: 'integer' as const, description: 'Estimated total kcal' },
+    protein: { type: 'integer' as const, description: 'Estimated protein in grams' },
+    carbs: { type: 'integer' as const, description: 'Estimated carbs in grams' },
+    fats: { type: 'integer' as const, description: 'Estimated fats in grams' },
+    confidence: {
+      type: 'string' as const,
+      enum: ['low', 'medium', 'high'],
+    },
+  },
+  required: ['mealName', 'mealType', 'calories', 'protein', 'carbs', 'fats', 'confidence'],
+  additionalProperties: false,
+};
+
+export interface MealEstimate {
+  mealName: string;
+  mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
+  calories: number;
+  protein: number;
+  carbs: number;
+  fats: number;
+  confidence: 'low' | 'medium' | 'high';
+}
+
+/** Estimates calories and macros from a photo of a meal. Returns null when
+ *  the AI is unconfigured, refuses, or the image can't be parsed. */
+export async function analyzeMealPhoto(
+  imageBase64: string,
+  mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif'
+): Promise<MealEstimate | null> {
+  if (!aiConfigured()) return null;
+
+  try {
+    const response = await getClient().messages.create({
+      model: 'claude-opus-4-8',
+      max_tokens: 1024,
+      output_config: { format: { type: 'json_schema', schema: MEAL_SCHEMA } },
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: mediaType, data: imageBase64 },
+            },
+            {
+              type: 'text',
+              text:
+                'Estimate the nutrition of the food in this photo for a personal ' +
+                'food-logging app: total calories and macros (protein, carbs, fats ' +
+                'in grams) for the whole visible portion. Give your single best ' +
+                'estimate and rate your confidence.',
+            },
+          ],
+        },
+      ],
+    });
+
+    if (response.stop_reason === 'refusal' || response.content.length === 0) return null;
+    const text = response.content.find((b) => b.type === 'text');
+    return text ? (JSON.parse(text.text) as MealEstimate) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Breaks a quest title into 3-5 actionable steps. Never throws: falls back
  *  to the heuristic steps when the AI is unconfigured or errors. */
 export async function generateSteps(
