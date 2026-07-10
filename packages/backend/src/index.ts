@@ -38,6 +38,26 @@ fastify.addContentTypeParser('application/json', { parseAs: 'string' }, (req, bo
 fastify.register(cors, { origin: true });
 fastify.register(jwt, { secret: process.env.JWT_SECRET || 'supersecret_life_achiever_key' });
 
+// Rate limiting: Redis-backed when REDIS_URL is set (shared across
+// instances), in-memory otherwise. Failures in the store never take
+// requests down (skipOnError).
+fastify.register(require('@fastify/rate-limit'), {
+  max: 300,
+  timeWindow: '1 minute',
+  skipOnError: true,
+  ...(process.env.REDIS_URL ? { redis: require('./lib/redis').redisClient } : {}),
+  allowList: (req: { url: string }) => req.url === '/api/health',
+  errorResponseBuilder: (_req: unknown, context: { after: string }) => ({
+    error: 'RATE_LIMITED',
+    message: `Too many requests, retry in ${context.after}`,
+    statusCode: 429,
+  }),
+});
+
+// Reject cross-origin writes from unknown origins (defence in depth on
+// top of bearer-token auth).
+fastify.addHook('onRequest', require('./middleware/csrf').csrfProtect);
+
 // Register API Routes
 fastify.register(authRoutes);
 fastify.register(questRoutes);

@@ -9,6 +9,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
   // Dev/local login for the single-user desktop app: no Google verification,
   // no Redis session — find-or-create the user and hand back a long-lived JWT.
   fastify.post('/api/auth/dev', {
+    config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
     schema: {
       body: {
         type: 'object',
@@ -36,7 +37,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
     return reply.send({ token, user });
   });
 
-  fastify.post('/auth/google', async (request, reply) => {
+  fastify.post('/auth/google', {
+    config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+  }, async (request, reply) => {
     const { idToken, email, name, googleId } = request.body as { idToken: string, email: string, name: string, googleId: string };
     
     // In production, we should verify the idToken using google-auth-library here.

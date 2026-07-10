@@ -11,6 +11,11 @@ const client = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
 
 let available = false;
 client.on('error', () => {});
+
+/** Raw client for libraries that take an ioredis instance (rate limiting).
+ *  Callers must tolerate command failures when Redis is down. */
+export const redisClient = client;
+export const redisAvailable = () => available;
 client
   .connect()
   .then(() => {
