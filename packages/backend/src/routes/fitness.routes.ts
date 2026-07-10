@@ -3,9 +3,11 @@ import { authenticate } from '../middleware/auth';
 import { db } from '../db';
 import { healthMetrics, activities } from '../db/schema';
 import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
+import { isSameWorkout } from '../lib/workouts';
 
-/** Logs within this window of an existing activity are the same workout. */
-const DUPLICATE_WINDOW_MS = 45 * 60 * 1000;
+/** How far around a new activity to look for duplicate candidates; the
+ *  actual match is interval overlap (see isSameWorkout). */
+const CANDIDATE_WINDOW_MS = 6 * 60 * 60 * 1000;
 
 export default async function fitnessRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', authenticate);
@@ -15,12 +17,24 @@ export default async function fitnessRoutes(fastify: FastifyInstance) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const metrics = await db.query.healthMetrics.findFirst({
+    // Merge every row for today: legacy code wrote arbitrary-timestamp rows,
+    // new code upserts a midnight-keyed one — summing keeps both correct.
+    const rows = await db.query.healthMetrics.findMany({
       where: and(
         eq(healthMetrics.userId, user.id),
         gte(healthMetrics.date, today)
       )
     });
+    const metrics = rows.length === 0 ? null : rows.reduce((acc, r) => ({
+      ...acc,
+      steps: (acc.steps || 0) + (r.steps || 0),
+      caloriesBurned: (acc.caloriesBurned || 0) + (r.caloriesBurned || 0),
+      heartRateMin: r.heartRateMin != null && (acc.heartRateMin == null || r.heartRateMin < acc.heartRateMin)
+        ? r.heartRateMin : acc.heartRateMin,
+      heartRateMax: r.heartRateMax != null && (acc.heartRateMax == null || r.heartRateMax > acc.heartRateMax)
+        ? r.heartRateMax : acc.heartRateMax,
+      sleepScore: r.sleepScore ?? acc.sleepScore,
+    }));
 
     // Recent workouts (Strava + manual), newest first, for the Activity Log.
     const recent = await db.query.activities.findMany({
@@ -61,11 +75,13 @@ export default async function fitnessRoutes(fastify: FastifyInstance) {
     }).onConflictDoUpdate({
       target: [healthMetrics.userId, healthMetrics.date],
       set: {
+        // Health syncs send absolute daily totals; take the max so they
+        // never wipe out manual logs made the same day.
         steps: replace
-          ? data.steps ?? 0
+          ? sql`GREATEST(${healthMetrics.steps}, ${data.steps ?? 0})`
           : sql`${healthMetrics.steps} + ${data.steps ?? 0}`,
         caloriesBurned: replace
-          ? data.caloriesBurned ?? 0
+          ? sql`GREATEST(${healthMetrics.caloriesBurned}, ${data.caloriesBurned ?? 0})`
           : sql`${healthMetrics.caloriesBurned} + ${data.caloriesBurned ?? 0}`,
         heartRateMin: sql`LEAST(COALESCE(${healthMetrics.heartRateMin}, 999), COALESCE(${data.heartRateMin ?? null}, 999))`,
         heartRateMax: sql`GREATEST(COALESCE(${healthMetrics.heartRateMax}, 0), COALESCE(${data.heartRateMax ?? null}, 0))`,
@@ -102,13 +118,16 @@ export default async function fitnessRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'name and a valid startTime are required' });
     }
 
-    const overlapping = await db.query.activities.findFirst({
+    const candidates = await db.query.activities.findMany({
       where: and(
         eq(activities.userId, user.id),
-        gte(activities.startTime, new Date(startTime.getTime() - DUPLICATE_WINDOW_MS)),
-        lte(activities.startTime, new Date(startTime.getTime() + DUPLICATE_WINDOW_MS))
+        gte(activities.startTime, new Date(startTime.getTime() - CANDIDATE_WINDOW_MS)),
+        lte(activities.startTime, new Date(startTime.getTime() + CANDIDATE_WINDOW_MS))
       ),
     });
+    const overlapping = candidates.find((c) =>
+      isSameWorkout(startTime, data.durationSeconds ?? 0, c.startTime, c.durationSeconds ?? 0)
+    );
     if (overlapping) {
       return reply.send({ duplicate: true, kept: overlapping.source });
     }

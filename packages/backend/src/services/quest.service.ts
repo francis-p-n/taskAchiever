@@ -1,7 +1,8 @@
-import { eq, and } from 'drizzle-orm';
+import { eq, and, like, isNull, gt, ne } from 'drizzle-orm';
 import { db } from '../db';
 import { quests, questSteps, userStats } from '../db/schema';
 import { cache } from '../lib/redis';
+import { TodoistService } from './todoist.service';
 
 export class QuestService {
   static async getQuests(userId: number) {
@@ -123,6 +124,30 @@ export class QuestService {
       completedAt: null,
       fulfillment: null
     }).where(eq(quests.id, questId)).returning();
+
+    // Completing a recurring quest spawned the next occurrence — undo
+    // removes any still-open future sibling so it doesn't double up.
+    if (quest.recurrence) {
+      const baseId = questId.replace(/-r\d+$/, '');
+      await db.delete(quests).where(and(
+        eq(quests.userId, userId),
+        like(quests.id, `${baseId}-r%`),
+        ne(quests.id, questId),
+        isNull(quests.completedAt),
+        quest.dueDate ? gt(quests.dueDate, quest.dueDate) : gt(quests.dueDate, new Date())
+      ));
+    }
+
+    // If the completion was already pushed to Todoist, reopen it there.
+    if (quest.todoistId && quest.todoistSyncedAt) {
+      TodoistService.reopenTask(userId, quest.todoistId)
+        .then(async (ok) => {
+          if (ok) {
+            await db.update(quests).set({ todoistSyncedAt: null }).where(eq(quests.id, questId));
+          }
+        })
+        .catch(() => {});
+    }
 
     // Take back the XP and completion count. Streak is left alone — it
     // can't be reliably reconstructed after the fact.

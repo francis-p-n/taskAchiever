@@ -69,6 +69,23 @@ export class TodoistService {
     return null;
   }
 
+  /** Best-effort reopen when a completion is undone in the app, so Todoist
+   *  and lifeOS don't diverge on the task's state. */
+  static async reopenTask(userId: number, todoistId: string): Promise<boolean> {
+    const settings = await db.query.userSettings.findFirst({ where: eq(userSettings.userId, userId) });
+    if (!settings?.todoistApiKey) return false;
+    try {
+      const res = await fetch(`${TODOIST_BASE}/tasks/${todoistId}/reopen`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${settings.todoistApiKey}` },
+        signal: AbortSignal.timeout(10000),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
   static async syncUser(userId: number): Promise<SyncResult> {
     const settings = await db.query.userSettings.findFirst({ where: eq(userSettings.userId, userId) });
     if (!settings || !settings.syncEnabled || !settings.todoistApiKey) {
@@ -82,6 +99,7 @@ export class TodoistService {
 
     let imported = 0;
     let closed = 0;
+    const newQuests: Array<{ id: string; title: string }> = [];
 
     try {
       // PULL: import active Todoist tasks we have not seen before.
@@ -114,21 +132,7 @@ export class TodoistService {
           .returning({ id: quests.id });
         if (inserted.length > 0) {
           imported++;
-          // Make imported side quests actionable: break them into steps.
-          // Only when the AI is configured — heuristic filler steps would
-          // just be noise on simple todos.
-          if (aiConfigured()) {
-            const { steps, source } = await generateSteps(task.content);
-            if (source === 'ai' && steps.length > 0) {
-              await db.insert(questSteps).values(
-                steps.map((text, i) => ({
-                  id: `${inserted[0].id}-step${i}`,
-                  questId: inserted[0].id,
-                  text,
-                }))
-              ).onConflictDoNothing();
-            }
-          }
+          newQuests.push({ id: inserted[0].id, title: task.content });
         }
       }
 
@@ -163,7 +167,37 @@ export class TodoistService {
     await db.update(userSettings).set({ todoistLastSyncAt: new Date() }).where(eq(userSettings.userId, userId));
     await cache.del(`quests:${userId}`);
 
+    // Make imported side quests actionable: break them into AI-generated
+    // steps. Runs after the response — one Claude call per task would blow
+    // straight past the client's request timeout if done inline.
+    if (aiConfigured() && newQuests.length > 0) {
+      void this.generateStepsInBackground(userId, newQuests);
+    }
+
     return { status: 'success', imported, closed };
+  }
+
+  private static async generateStepsInBackground(
+    userId: number,
+    newQuests: Array<{ id: string; title: string }>
+  ): Promise<void> {
+    try {
+      for (const quest of newQuests) {
+        const { steps, source } = await generateSteps(quest.title);
+        if (source === 'ai' && steps.length > 0) {
+          await db.insert(questSteps).values(
+            steps.map((text, i) => ({
+              id: `${quest.id}-step${i}`,
+              questId: quest.id,
+              text,
+            }))
+          ).onConflictDoNothing();
+        }
+      }
+      await cache.del(`quests:${userId}`); // steps show up on the next fetch
+    } catch (err) {
+      console.error(`Step generation failed for user ${userId}`, err);
+    }
   }
 
   static async syncAllUsers(): Promise<void> {

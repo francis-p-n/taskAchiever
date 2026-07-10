@@ -1,14 +1,18 @@
-import { eq, and, ne, gte, lte } from 'drizzle-orm';
+import { eq, and, ne, gte, lte, inArray } from 'drizzle-orm';
 import { db } from '../db';
 import { activities, userSettings } from '../db/schema';
+import { isSameWorkout } from '../lib/workouts';
 
 const STRAVA_OAUTH = 'https://www.strava.com/oauth';
 const STRAVA_API = 'https://www.strava.com/api/v3';
 
-/** Two logs of the same workout rarely share exact timestamps; anything
- *  starting within this window of a Strava activity is treated as the same
- *  workout and removed (Strava wins). */
-const DUPLICATE_WINDOW_MS = 45 * 60 * 1000;
+/** How far around a Strava activity to look for duplicate candidates; the
+ *  actual match is interval overlap (see isSameWorkout), not this window. */
+const CANDIDATE_WINDOW_MS = 6 * 60 * 60 * 1000;
+
+/** Cap per-activity detail fetches (for calories) so one sync can't crawl
+ *  through hundreds of Strava API calls. */
+const MAX_DETAIL_FETCHES = 25;
 
 interface TokenResponse {
   access_token: string;
@@ -171,12 +175,14 @@ export class StravaService {
       if (!res.ok) return { status: 'error', reason: `Strava returned ${res.status}` };
       const list = (await res.json()) as StravaActivity[];
 
+      let detailFetches = 0;
       for (const item of list) {
         const startTime = new Date(item.start_date);
 
         // The list endpoint omits calories — fetch the detail for new rows.
         let calories = item.calories ?? null;
-        if (calories == null) {
+        if (calories == null && detailFetches < MAX_DETAIL_FETCHES) {
+          detailFetches++;
           try {
             const detailRes = await fetch(`${STRAVA_API}/activities/${item.id}`, {
               headers: { Authorization: `Bearer ${token}` },
@@ -219,20 +225,31 @@ export class StravaService {
           .returning({ id: activities.id });
         imported++;
 
-        // Same workout logged twice (manually or via health sync): anything
-        // from another source starting within the window is a duplicate.
-        const removed = await db
-          .delete(activities)
-          .where(
-            and(
-              eq(activities.userId, userId),
-              ne(activities.source, 'strava'),
-              gte(activities.startTime, new Date(startTime.getTime() - DUPLICATE_WINDOW_MS)),
-              lte(activities.startTime, new Date(startTime.getTime() + DUPLICATE_WINDOW_MS))
+        // Same workout logged twice (manually or via health sync): a
+        // duplicate is a non-Strava activity whose time interval actually
+        // overlaps this one — not merely something nearby. Strava wins.
+        const candidates = await db.query.activities.findMany({
+          where: and(
+            eq(activities.userId, userId),
+            ne(activities.source, 'strava'),
+            gte(activities.startTime, new Date(startTime.getTime() - CANDIDATE_WINDOW_MS)),
+            lte(activities.startTime, new Date(startTime.getTime() + CANDIDATE_WINDOW_MS))
+          ),
+        });
+        const duplicateIds = candidates
+          .filter((c) =>
+            isSameWorkout(
+              startTime,
+              item.elapsed_time ?? 0,
+              c.startTime,
+              c.durationSeconds ?? 0
             )
           )
-          .returning({ id: activities.id });
-        deduped += removed.length;
+          .map((c) => c.id);
+        if (duplicateIds.length > 0) {
+          await db.delete(activities).where(inArray(activities.id, duplicateIds));
+          deduped += duplicateIds.length;
+        }
       }
 
       await db

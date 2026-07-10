@@ -43,8 +43,11 @@ class _EditPlayerDialogState extends ConsumerState<EditPlayerDialog> {
           job: _job.text.trim().isEmpty ? null : _job.text.trim(),
           age: int.tryParse(_age.text.trim()),
         );
+    // Grab the messenger before popping — looking it up from this context
+    // after the dialog is gone throws (deactivated widget ancestor lookup).
+    final messenger = ScaffoldMessenger.of(context);
     Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.showSnackBar(
       const SnackBar(content: Text('Player ID updated.')),
     );
   }
