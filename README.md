@@ -65,4 +65,23 @@ PORT=3000
 DATABASE_URL=postgres://life_achiever:password@localhost:5432/life_achiever
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=super_secret_key
+
+# Optional integrations
+ANTHROPIC_API_KEY=sk-ant-...        # AI quest steps + meal-photo analysis
+STRAVA_CLIENT_ID=12345              # strava.com/settings/api
+STRAVA_CLIENT_SECRET=...
 ```
+
+## ⌚ Wearables: Nothing X / CMF Watch
+
+Nothing X has no public API, so watch data routes through **Google Health
+Connect** on the phone:
+
+1. In the Nothing X (or CMF Watch) app, enable **Sync with Health Connect**.
+2. In Health Connect, grant lifeOS read access to steps, heart rate, active
+   energy and exercise.
+3. In lifeOS (Android build) → Fitness → **Sync Health Connect**.
+
+Steps/calories/heart-rate land in the daily metrics; workouts are logged as
+activities. Workouts already imported from Strava are detected by their start
+time and skipped, so the same session is never counted twice.

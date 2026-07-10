@@ -117,6 +117,57 @@ class FitnessRepository {
       return false;
     }
   }
+
+  /// Absolute daily totals from a health sync (replaces today's row instead
+  /// of accumulating like manual logs).
+  Future<bool> pushDailyTotals({
+    int? steps,
+    int? caloriesBurned,
+    int? heartRateMin,
+    int? heartRateMax,
+  }) async {
+    try {
+      await _dio.post('/fitness', data: {
+        'replace': true,
+        if (steps != null) 'steps': steps,
+        if (caloriesBurned != null) 'caloriesBurned': caloriesBurned,
+        if (heartRateMin != null) 'heartRateMin': heartRateMin,
+        if (heartRateMax != null) 'heartRateMax': heartRateMax,
+      });
+      return true;
+    } on DioException {
+      return false;
+    }
+  }
+
+  /// Logs a single workout. The backend skips it (duplicate: true) when an
+  /// activity from any source already covers the same time window.
+  Future<bool> logActivityEntry({
+    required String name,
+    required DateTime startTime,
+    String source = 'manual',
+    String? externalId,
+    String? sportType,
+    int? durationSeconds,
+    int? caloriesBurned,
+    int? avgHeartRate,
+  }) async {
+    try {
+      await _dio.post('/fitness/activity', data: {
+        'name': name,
+        'startTime': startTime.toIso8601String(),
+        'source': source,
+        if (externalId != null) 'externalId': externalId,
+        if (sportType != null) 'sportType': sportType,
+        if (durationSeconds != null) 'durationSeconds': durationSeconds,
+        if (caloriesBurned != null) 'caloriesBurned': caloriesBurned,
+        if (avgHeartRate != null) 'avgHeartRate': avgHeartRate,
+      });
+      return true;
+    } on DioException {
+      return false;
+    }
+  }
 }
 
 final fitnessRepositoryProvider = Provider<FitnessRepository>((ref) {

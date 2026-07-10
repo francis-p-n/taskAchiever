@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_os/core/data/integrations_repository.dart';
 import 'package:life_os/core/theme.dart';
 import 'package:life_os/features/fitness/data/fitness_repository.dart';
+import 'package:life_os/features/fitness/data/health_sync.dart';
 import 'package:life_os/shared/widgets/integration_card.dart';
 import 'package:life_os/shared/widgets/metric_callout.dart';
 import 'package:life_os/shared/widgets/notion_card.dart';
@@ -160,6 +161,8 @@ class FitnessScreen extends ConsumerWidget {
         const NotionSectionTitle(
             icon: Icons.link_outlined, title: 'Integrations'),
         const _StravaCard(),
+        const SizedBox(height: 12),
+        const _HealthConnectCard(),
       ],
     );
   }
@@ -407,6 +410,72 @@ class _StravaCard extends ConsumerWidget {
         final result = await repo.disconnectStrava();
         if (context.mounted) _showResult(context, ref, result);
       },
+    );
+  }
+}
+
+/// Health Connect card: the route for the Nothing X / CMF Watch app, which
+/// has no public API — its data lands in Google Health Connect on the phone,
+/// and the Android build of lifeOS pulls it from there.
+class _HealthConnectCard extends ConsumerWidget {
+  const _HealthConnectCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return NotionCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.watch_outlined, size: 16, color: NotionColors.textMuted),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Google Health Connect (Nothing X / CMF Watch)',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Nothing X has no public API, so route your watch through Health '
+            'Connect: in Nothing X enable "Sync with Health Connect", then '
+            'sync here from the Android app. Steps, calories, heart rate and '
+            'workouts come across; duplicate workouts already on Strava are '
+            'skipped automatically.',
+            style: TextStyle(
+                fontSize: 12, color: NotionColors.textMuted, height: 1.5),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 30,
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Syncing Health Connect…')),
+                );
+                final message =
+                    await ref.read(healthSyncProvider).syncToday();
+                if (!context.mounted) return;
+                ref.invalidate(dailyFitnessProvider);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(message)),
+                );
+              },
+              style: OutlinedButton.styleFrom(
+                foregroundColor: NotionColors.textPrimary,
+                side: const BorderSide(color: NotionColors.border),
+              ),
+              icon: const Icon(Icons.sync, size: 14),
+              label: const Text('Sync Health Connect',
+                  style: TextStyle(fontSize: 12)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
