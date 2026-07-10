@@ -102,6 +102,59 @@ export async function analyzeMealPhoto(
   }
 }
 
+const DIFFICULTY_SCHEMA = {
+  type: 'object' as const,
+  properties: {
+    difficulty: {
+      type: 'integer' as const,
+      minimum: 1,
+      maximum: 5,
+      description: '1 = trivial errand, 3 = solid effort, 5 = major undertaking',
+    },
+  },
+  required: ['difficulty'],
+  additionalProperties: false,
+};
+
+/** Rates a quest's difficulty 1-5. Never throws: unconfigured or failing AI
+ *  falls back to a neutral 2 so quest creation always works. */
+export async function estimateDifficulty(
+  title: string,
+  description?: string | null
+): Promise<{ difficulty: number; source: 'ai' | 'fallback' }> {
+  if (!aiConfigured()) return { difficulty: 2, source: 'fallback' };
+
+  try {
+    const response = await getClient().messages.create({
+      model: 'claude-opus-4-8',
+      max_tokens: 256,
+      output_config: { format: { type: 'json_schema', schema: DIFFICULTY_SCHEMA } },
+      messages: [
+        {
+          role: 'user',
+          content:
+            `Rate the difficulty of this personal quest from 1 (trivial errand) to ` +
+            `5 (major multi-day undertaking) for a day-planner app.\n` +
+            `Title: ${title}` +
+            (description ? `\nDescription: ${description}` : ''),
+        },
+      ],
+    });
+
+    if (response.stop_reason === 'refusal' || response.content.length === 0) {
+      return { difficulty: 2, source: 'fallback' };
+    }
+    const text = response.content.find((b) => b.type === 'text');
+    const parsed = text ? (JSON.parse(text.text) as { difficulty: number }) : null;
+    if (!parsed || !Number.isInteger(parsed.difficulty)) {
+      return { difficulty: 2, source: 'fallback' };
+    }
+    return { difficulty: Math.min(5, Math.max(1, parsed.difficulty)), source: 'ai' };
+  } catch {
+    return { difficulty: 2, source: 'fallback' };
+  }
+}
+
 /** Breaks a quest title into 3-5 actionable steps. Never throws: falls back
  *  to the heuristic steps when the AI is unconfigured or errors. */
 export async function generateSteps(

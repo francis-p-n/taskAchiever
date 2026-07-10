@@ -65,6 +65,47 @@ export default async function questRoutes(fastify: FastifyInstance) {
     }
   });
 
+  fastify.patch('/api/quests/:id', {
+    schema: {
+      params: idParams,
+      body: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', minLength: 1, maxLength: 300 },
+          description: { type: ['string', 'null'], maxLength: 5000 },
+          category: { type: ['string', 'null'], maxLength: 100 },
+          difficulty: { type: 'integer', minimum: 1, maximum: 5 },
+          dueDate: { type: ['string', 'null'] },
+          recurrence: { type: ['string', 'null'], enum: ['daily', 'weekly', null] },
+        },
+        additionalProperties: false,
+      },
+    },
+  }, async (request, reply) => {
+    const user = request.user as { id: number };
+    const { id } = request.params as { id: string };
+    try {
+      return reply.send(await QuestService.updateQuest(user.id, id, request.body));
+    } catch (err: any) {
+      return reply.status(404).send({ error: err.message });
+    }
+  });
+
+  // AI action-step breakdown, triggered from the quest's "generate steps"
+  // button. Kept off the global limit: one Claude call per press.
+  fastify.post('/api/quests/:id/generate-steps', {
+    config: { rateLimit: { max: 30, timeWindow: '1 hour' } },
+    schema: { params: idParams },
+  }, async (request, reply) => {
+    const user = request.user as { id: number };
+    const { id } = request.params as { id: string };
+    try {
+      return reply.send(await QuestService.generateStepsForQuest(user.id, id));
+    } catch (err: any) {
+      return reply.status(404).send({ error: err.message });
+    }
+  });
+
   fastify.delete('/api/quests/:id', { schema: { params: idParams } }, async (request, reply) => {
     const user = request.user as { id: number };
     const { id } = request.params as { id: string };

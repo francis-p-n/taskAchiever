@@ -3,6 +3,7 @@ import { db } from '../db';
 import { quests, questSteps, userStats } from '../db/schema';
 import { cache } from '../lib/redis';
 import { TodoistService } from './todoist.service';
+import { aiConfigured, estimateDifficulty, generateSteps } from './ai.service';
 
 export class QuestService {
   static async getQuests(userId: number, includeArchived = false) {
@@ -98,8 +99,67 @@ export class QuestService {
       await db.insert(questSteps).values(stepsToInsert);
     }
 
+    // No difficulty given: rate it with the AI after the response so create
+    // stays fast. The auto value lands on the next fetch and stays amendable.
+    if (data.difficulty == null && aiConfigured()) {
+      void estimateDifficulty(data.title, data.description)
+        .then(async ({ difficulty, source }) => {
+          if (source !== 'ai') return;
+          await db.update(quests)
+            .set({ difficulty, updatedAt: new Date() })
+            .where(and(eq(quests.id, quest.id), isNull(quests.completedAt)));
+          await this.bustQuestCache(userId);
+        })
+        .catch(() => {});
+    }
+
     await this.bustQuestCache(userId);
     return this.getQuestById(userId, quest.id);
+  }
+
+  /** Partial update (difficulty amendments, edits). Only whitelisted fields. */
+  static async updateQuest(userId: number, questId: string, patch: any) {
+    const set: Record<string, unknown> = { updatedAt: new Date() };
+    if (patch.title !== undefined) set.title = patch.title;
+    if (patch.description !== undefined) set.description = patch.description;
+    if (patch.category !== undefined) set.category = patch.category;
+    if (patch.difficulty !== undefined) set.difficulty = patch.difficulty;
+    if (patch.dueDate !== undefined) set.dueDate = patch.dueDate ? new Date(patch.dueDate) : null;
+    if (patch.recurrence !== undefined) {
+      set.recurrence = patch.recurrence === 'daily' || patch.recurrence === 'weekly' ? patch.recurrence : null;
+    }
+
+    const [quest] = await db.update(quests)
+      .set(set)
+      .where(and(eq(quests.id, questId), eq(quests.userId, userId)))
+      .returning();
+    if (!quest) throw new Error('Quest not found');
+
+    await this.bustQuestCache(userId);
+    return this.getQuestById(userId, questId);
+  }
+
+  /** Button-triggered AI breakdown into actionable steps. Step ids are
+   *  deterministic per quest, so pressing the button twice cannot duplicate. */
+  static async generateStepsForQuest(userId: number, questId: string) {
+    const quest = await db.query.quests.findFirst({
+      where: and(eq(quests.id, questId), eq(quests.userId, userId)),
+    });
+    if (!quest) throw new Error('Quest not found');
+
+    const { steps, source } = await generateSteps(quest.title);
+    if (steps.length > 0) {
+      await db.insert(questSteps).values(
+        steps.map((text, i) => ({
+          id: `${questId}-step${i}`,
+          questId,
+          text,
+        }))
+      ).onConflictDoNothing();
+    }
+
+    await this.bustQuestCache(userId);
+    return { source, quest: await this.getQuestById(userId, questId) };
   }
 
   static async getQuestById(userId: number, questId: string) {
