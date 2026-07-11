@@ -39,7 +39,9 @@ export function errorHandler(
       .status(status)
       .send({ error: 'INTERNAL', message: 'Something went wrong', statusCode: status });
   }
+  // @fastify/rate-limit throws a bare object with statusCode 429 and no code.
+  const fallbackCode = status === 429 ? 'RATE_LIMITED' : 'ERROR';
   return reply
     .status(status)
-    .send({ error: fastifyErr.code || 'ERROR', message: err.message, statusCode: status });
+    .send({ error: fastifyErr.code || fallbackCode, message: err.message, statusCode: status });
 }
