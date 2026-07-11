@@ -4,6 +4,40 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const _devEmail = 'mugicianx@gmail.com';
 const _tokenPrefsKey = 'api_auth_token';
+const _urlPrefsKey = 'backend_url';
+
+/// Compile-time default, overridable per install from Settings → Server.
+/// On the desktop the backend runs locally; a phone points this at the PC's
+/// LAN address (http://192.168.x.x:3000/api) or a hosted deployment.
+const _defaultBaseUrl = String.fromEnvironment(
+  'API_BASE_URL',
+  defaultValue: 'http://127.0.0.1:3000/api',
+);
+
+/// The backend base URL. Changing it (Settings → Server) rebuilds the Dio
+/// client and, through it, every repository in the app.
+class BackendUrlNotifier extends StateNotifier<String> {
+  BackendUrlNotifier() : super(_defaultBaseUrl) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_urlPrefsKey);
+    if (saved != null && saved.isNotEmpty && mounted) state = saved;
+  }
+
+  Future<void> set(String url) async {
+    state = url;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_urlPrefsKey, url);
+  }
+}
+
+final backendUrlProvider =
+    StateNotifierProvider<BackendUrlNotifier, String>((ref) {
+  return BackendUrlNotifier();
+});
 
 /// Attaches a JWT to every request, obtaining one from the backend's dev
 /// login endpoint on first use (single-user desktop app — no login UI).
@@ -90,7 +124,7 @@ class _AuthInterceptor extends Interceptor {
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(
     BaseOptions(
-      baseUrl: 'http://127.0.0.1:3000/api', // Use 10.0.2.2 for Android emulator if needed later
+      baseUrl: ref.watch(backendUrlProvider),
       connectTimeout: const Duration(seconds: 3),
       receiveTimeout: const Duration(seconds: 3),
       headers: {

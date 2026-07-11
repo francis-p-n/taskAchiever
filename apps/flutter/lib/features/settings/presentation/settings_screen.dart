@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_os/core/data/integrations_repository.dart';
 import 'package:life_os/core/flows/integration_flows.dart';
+import 'package:life_os/core/network/api_client.dart';
 import 'package:life_os/core/theme.dart';
 import 'package:life_os/features/fitness/data/health_sync.dart';
 import 'package:life_os/features/player/application/player_notifier.dart';
 import 'package:life_os/features/quests/data/quests_repository.dart';
 import 'package:life_os/features/settings/presentation/edit_player_dialog.dart';
+import 'package:life_os/shared/widgets/connect_dialog.dart';
 import 'package:life_os/shared/widgets/integration_card.dart';
 import 'package:life_os/shared/widgets/metric_callout.dart';
 import 'package:life_os/shared/widgets/notion_card.dart';
@@ -85,6 +87,40 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 20),
+          const NotionSectionTitle(
+              icon: Icons.dns_outlined, title: 'Server'),
+          _UtilityIntegrationRow(
+            icon: Icons.cloud_outlined,
+            name: 'Backend',
+            description: ref.watch(backendUrlProvider) +
+                '\nOn a phone, point this at your PC '
+                    '(http://<pc-ip>:3000/api) or a hosted backend — the '
+                    'same account syncs across every device.',
+            actionLabel: 'Change',
+            onAction: () async {
+              final url = await showConnectDialog(
+                context,
+                title: 'Backend URL',
+                fieldLabel: 'http(s)://host:port/api',
+                helpText: 'Where the lifeOS backend lives. Desktop default '
+                    'is http://127.0.0.1:3000/api. From a phone, use your '
+                    "PC's LAN IP or a hosted URL.",
+              );
+              if (url == null || url.trim().isEmpty || !context.mounted) {
+                return;
+              }
+              final trimmed = url.trim().replaceAll(RegExp(r'/+$'), '');
+              await ref.read(backendUrlProvider.notifier).set(trimmed);
+              ref.invalidate(integrationsStatusProvider);
+              ref.invalidate(remoteQuestsProvider);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Backend set to $trimmed')),
+                );
+              }
+            },
           ),
           const SizedBox(height: 20),
           const NotionSectionTitle(

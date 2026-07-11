@@ -7,10 +7,13 @@
     <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED"/>
     <uses-permission android:name="android.permission.health.READ_EXERCISE"/>
     <uses-permission android:name="android.permission.health.READ_SLEEP"/>
+    <!-- The backend on a home network is plain http://<pc-ip>:3000 —
+         Android blocks cleartext by default, so allow it for LAN sync. -->
     <application
         android:label="lifeOS"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
