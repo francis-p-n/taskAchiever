@@ -1,0 +1,24 @@
+# Render blueprint: deploy the lifeOS backend with one click
+# (New + → Blueprint → point at this repo). Set the `sync: false` env vars
+# in the dashboard when prompted.
+services:
+  - type: web
+    name: lifeos-api
+    runtime: docker
+    rootDir: packages/backend
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # your Neon connection string
+      - key: JWT_SECRET
+        generateValue: true
+      - key: AUTH_ACCESS_CODE
+        sync: false # pick a passphrase; enter the same one in the app's Settings → Access code
+      - key: ANTHROPIC_API_KEY
+        sync: false # optional: AI meal photos, steps, difficulty, suggestions
+      - key: REDIS_URL
+        sync: false # optional: shared cache/rate limits
