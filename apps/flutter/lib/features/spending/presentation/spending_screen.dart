@@ -1,9 +1,7 @@
-import 'dart:io';
-
-import 'package:file_picker/file_picker.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:life_os/core/flows/integration_flows.dart';
 import 'package:life_os/core/theme.dart';
 import 'package:life_os/features/spending/data/spending_repository.dart';
 import 'package:life_os/shared/widgets/metric_callout.dart';
@@ -31,7 +29,7 @@ class SpendingScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.upload_file_outlined, size: 18),
             tooltip: 'Import Google Wallet / bank CSV',
-            onPressed: () => _importCsv(context, ref),
+            onPressed: () => importWalletCsvFlow(context, ref),
           ),
         ],
       ),
@@ -41,39 +39,6 @@ class SpendingScreen extends ConsumerWidget {
         error: (err, stack) => Center(child: Text('Error: $err')),
       ),
     );
-  }
-
-  /// Google Wallet has no read API, so expenses arrive as a file: export
-  /// from Google Takeout ("Google Pay" → transactions CSV) or any bank CSV
-  /// with date/amount/description columns, then import it here. Rows dedupe
-  /// server-side, so re-importing the same file is harmless.
-  Future<void> _importCsv(BuildContext context, WidgetRef ref) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final picked = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['csv'],
-      dialogTitle: 'Import Google Wallet / bank CSV',
-    );
-    final path = picked?.files.single.path;
-    if (path == null) return;
-
-    messenger.showSnackBar(
-      const SnackBar(content: Text('Importing transactions…')),
-    );
-    final csv = await File(path).readAsString();
-    final result =
-        await ref.read(spendingRepositoryProvider).importCsv(csv);
-
-    ref.invalidate(recentSpendingProvider);
-    ref.invalidate(spendingSummaryProvider);
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(SnackBar(
-      content: Text(result == null
-          ? 'Import failed — check the file has date and amount columns.'
-          : 'Imported ${result.imported} transactions'
-              '${result.skipped > 0 ? ', ${result.skipped} already known' : ''}'
-              '${result.failed > 0 ? ', ${result.failed} unreadable rows' : ''}.'),
-    ));
   }
 
   Widget _buildContent(BuildContext context, List<dynamic> transactions) {

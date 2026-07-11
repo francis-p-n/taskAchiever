@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_os/core/data/integrations_repository.dart';
 import 'package:life_os/core/flows/integration_flows.dart';
 import 'package:life_os/core/theme.dart';
+import 'package:life_os/features/fitness/data/health_sync.dart';
 import 'package:life_os/features/player/application/player_notifier.dart';
 import 'package:life_os/features/quests/data/quests_repository.dart';
 import 'package:life_os/features/settings/presentation/edit_player_dialog.dart';
@@ -125,6 +126,142 @@ class SettingsScreen extends ConsumerWidget {
               if (context.mounted) _showResult(context, ref, result);
             },
           ),
+          const SizedBox(height: 12),
+          IntegrationCard(
+            icon: Icons.directions_run_outlined,
+            name: 'Strava',
+            description:
+                'Pull in workouts automatically. Overlapping activities from '
+                'other sources are deduped — Strava wins.',
+            connected: status?.strava.connected ?? false,
+            lastSyncAt: status?.strava.lastSyncAt,
+            onConnect: () => connectStravaFlow(context, ref),
+            onSync: () async {
+              final result = await repo.syncStrava();
+              if (context.mounted) _showResult(context, ref, result);
+            },
+            onDisconnect: () async {
+              final result = await repo.disconnectStrava();
+              if (context.mounted) _showResult(context, ref, result);
+            },
+          ),
+          const SizedBox(height: 12),
+          _UtilityIntegrationRow(
+            icon: Icons.monitor_heart_outlined,
+            name: 'Health Connect',
+            description:
+                'Steps, heart rate and workouts from your watch, via the '
+                'Android Health Connect app.',
+            actionLabel: 'Sync now',
+            onAction: () async {
+              final message =
+                  await ref.read(healthSyncProvider).syncToday();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(SnackBar(content: Text(message)));
+              }
+            },
+          ),
+          const SizedBox(height: 12),
+          _UtilityIntegrationRow(
+            icon: Icons.account_balance_wallet_outlined,
+            name: 'Google Wallet / bank CSV',
+            description:
+                'Import expenses from a Google Takeout (Google Pay) export '
+                'or any bank statement CSV. Safe to re-import.',
+            actionLabel: 'Import CSV',
+            onAction: () => importWalletCsvFlow(context, ref),
+          ),
+          const SizedBox(height: 12),
+          _UtilityIntegrationRow(
+            icon: Icons.auto_awesome_outlined,
+            name: 'Claude AI',
+            description: (status?.aiConfigured ?? false)
+                ? 'Powering meal photo analysis, quest steps, difficulty '
+                    'ratings and side-quest ideas.'
+                : 'Set ANTHROPIC_API_KEY on the backend to enable meal '
+                    'photos, quest steps, difficulty and suggestions.',
+            statusTag: (status?.aiConfigured ?? false) ? 'Active' : 'Off',
+            statusOk: status?.aiConfigured ?? false,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Compact hub row for integrations that don't follow the connect/disconnect
+/// pattern (device sync, file import, server-side config).
+class _UtilityIntegrationRow extends StatelessWidget {
+  final IconData icon;
+  final String name;
+  final String description;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  final String? statusTag;
+  final bool statusOk;
+
+  const _UtilityIntegrationRow({
+    required this.icon,
+    required this.name,
+    required this.description,
+    this.actionLabel,
+    this.onAction,
+    this.statusTag,
+    this.statusOk = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return NotionCard(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: NotionColors.textMuted),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(name,
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w600)),
+                    if (statusTag != null) ...[
+                      const SizedBox(width: 8),
+                      NotionTag(
+                        text: statusTag!,
+                        color: statusOk
+                            ? NotionColors.green
+                            : NotionColors.textFaint,
+                        bgColor: statusOk
+                            ? NotionColors.greenBg
+                            : NotionColors.surfaceHover,
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(description,
+                    style: const TextStyle(
+                        fontSize: 11.5,
+                        height: 1.4,
+                        color: NotionColors.textMuted)),
+              ],
+            ),
+          ),
+          if (actionLabel != null) ...[
+            const SizedBox(width: 10),
+            SizedBox(
+              height: 28,
+              child: OutlinedButton(
+                onPressed: onAction,
+                child:
+                    Text(actionLabel!, style: const TextStyle(fontSize: 11)),
+              ),
+            ),
+          ],
         ],
       ),
     );
