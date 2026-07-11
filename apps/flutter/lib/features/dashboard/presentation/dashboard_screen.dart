@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:life_os/core/theme.dart';
 import 'package:life_os/features/dashboard/data/summary_repository.dart';
+import 'package:life_os/features/food/data/food_repository.dart';
 import 'package:life_os/features/player/application/player_notifier.dart';
+import 'package:life_os/features/spending/data/spending_repository.dart';
 import 'package:life_os/features/player/data/stats_repository.dart';
 import 'package:life_os/features/player/domain/player.dart';
 import 'package:life_os/features/quests/application/quest_actions.dart';
@@ -343,6 +345,12 @@ class _LeftColumn extends ConsumerWidget {
             ],
           ),
         ),
+        const SizedBox(height: 4),
+        const NotionSectionTitle(
+            icon: Icons.today_outlined, title: 'Today at a Glance'),
+        const _MealsGlanceCard(),
+        const SizedBox(height: 8),
+        const _SpendGlanceCard(),
         const SizedBox(height: 12),
         TextButton.icon(
           onPressed: () {
@@ -366,6 +374,82 @@ class _LeftColumn extends ConsumerWidget {
         const NotionSectionTitle(icon: Icons.event_outlined, title: 'Up Next'),
         const _UpNext(),
       ],
+    );
+  }
+}
+
+/// Today's nutrition in one line — the dashboard is the one-stop view, the
+/// Food screen is a tap away for details and logging.
+class _MealsGlanceCard extends ConsumerWidget {
+  const _MealsGlanceCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final meals = ref.watch(todayFoodProvider).valueOrNull ?? const [];
+    final calories = meals.fold(0, (sum, m) => sum + m.calories);
+    final protein = meals.fold(0, (sum, m) => sum + m.protein);
+
+    return NotionCard(
+      onTap: () => context.go('/food'),
+      child: Row(
+        children: [
+          const Icon(Icons.restaurant_outlined,
+              size: 15, color: NotionColors.orange),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              meals.isEmpty
+                  ? 'No meals logged yet'
+                  : '${meals.length} meal${meals.length == 1 ? '' : 's'} · ${protein}g protein',
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
+          Text(
+            '$calories kcal',
+            style: NotionType.mono(
+                size: 12,
+                weight: FontWeight.w600,
+                color: NotionColors.orange),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Today's and this month's spend in one line, tapping through to Gold.
+class _SpendGlanceCard extends ConsumerWidget {
+  const _SpendGlanceCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summary = ref.watch(spendingSummaryProvider).valueOrNull;
+
+    return NotionCard(
+      onTap: () => context.go('/spending'),
+      child: Row(
+        children: [
+          const Icon(Icons.payments_outlined,
+              size: 15, color: NotionColors.yellow),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              summary == null
+                  ? 'Spending unavailable offline'
+                  : 'Month \$${(summary.spentMonthCents / 100).toStringAsFixed(2)}',
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
+          if (summary != null)
+            Text(
+              'today \$${(summary.spentTodayCents / 100).toStringAsFixed(2)}',
+              style: NotionType.mono(
+                  size: 12,
+                  weight: FontWeight.w600,
+                  color: NotionColors.yellow),
+            ),
+        ],
+      ),
     );
   }
 }
