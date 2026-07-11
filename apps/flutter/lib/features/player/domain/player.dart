@@ -95,6 +95,90 @@ extension AreaX on Area {
 
 const maxEnergy = 10;
 
+/// Playable classes. A class is a specialization, not a costume: quests in
+/// the class's favored area earn bonus XP, so picking one shapes which side
+/// of life the game rewards hardest.
+enum PlayerClass { warrior, sage, mage, monk, healer }
+
+/// Favored-area quests earn base XP × this (rounded).
+const classXpMultiplier = 1.5;
+
+extension PlayerClassX on PlayerClass {
+  String get label {
+    switch (this) {
+      case PlayerClass.warrior:
+        return 'Warrior';
+      case PlayerClass.sage:
+        return 'Sage';
+      case PlayerClass.mage:
+        return 'Mage';
+      case PlayerClass.monk:
+        return 'Monk';
+      case PlayerClass.healer:
+        return 'Healer';
+    }
+  }
+
+  Area get favoredArea {
+    switch (this) {
+      case PlayerClass.warrior:
+        return Area.physical;
+      case PlayerClass.sage:
+        return Area.intel;
+      case PlayerClass.mage:
+        return Area.psyche;
+      case PlayerClass.monk:
+        return Area.spiritual;
+      case PlayerClass.healer:
+        return Area.care;
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case PlayerClass.warrior:
+        return Icons.fitness_center_outlined;
+      case PlayerClass.sage:
+        return Icons.menu_book_outlined;
+      case PlayerClass.mage:
+        return Icons.auto_fix_high_outlined;
+      case PlayerClass.monk:
+        return Icons.self_improvement_outlined;
+      case PlayerClass.healer:
+        return Icons.volunteer_activism_outlined;
+    }
+  }
+
+  String get tagline {
+    switch (this) {
+      case PlayerClass.warrior:
+        return 'Trains the body. Workouts and physical quests hit harder.';
+      case PlayerClass.sage:
+        return 'Sharpens the mind. Learning and deep work pay out more.';
+      case PlayerClass.mage:
+        return 'Feeds the psyche. Creative and joyful quests are amplified.';
+      case PlayerClass.monk:
+        return 'Stills the spirit. Meditation and reflection earn extra.';
+      case PlayerClass.healer:
+        return 'Tends to care. Self-care and looking after others rewards more.';
+    }
+  }
+
+  /// The class bonus: favored-area quests pay base × [classXpMultiplier].
+  int boostedXp(int baseXp, Area area) =>
+      area == favoredArea ? (baseXp * classXpMultiplier).round() : baseXp;
+
+  /// Parses the persisted job string; unknown/legacy values default to Mage
+  /// (the app's original default job).
+  static PlayerClass fromJob(String job) {
+    final normalized = job.trim().toLowerCase();
+    for (final playerClass in PlayerClass.values) {
+      if (playerClass.label.toLowerCase() == normalized) return playerClass;
+    }
+    return PlayerClass.mage;
+  }
+}
+
 class Player {
   final String name;
   final String job;
@@ -117,6 +201,9 @@ class Player {
     this.energies = const {},
     this.areas = const {},
   });
+
+  /// The class parsed from the persisted job string.
+  PlayerClass get playerClass => PlayerClassX.fromJob(job);
 
   /// XP required to advance from [level] to the next one.
   static int xpForLevel(int level) => 100 + (level - 1) * 50;

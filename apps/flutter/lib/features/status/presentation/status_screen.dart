@@ -6,6 +6,7 @@ import 'package:life_os/core/network/api_client.dart';
 import 'package:life_os/core/theme.dart';
 import 'package:life_os/features/player/application/player_notifier.dart';
 import 'package:life_os/features/player/data/stats_repository.dart';
+import 'package:life_os/features/player/domain/player.dart';
 import 'package:life_os/shared/widgets/metric_callout.dart';
 import 'package:life_os/shared/widgets/notion_card.dart';
 
@@ -94,7 +95,7 @@ class StatusScreen extends ConsumerWidget {
             child: Column(
               children: [
                 _row('Name', player.name),
-                _row('Job', player.job),
+                _row('Class', player.playerClass.label),
                 _row('Level', '${player.level}'),
                 _row('XP (this level)', '${player.xp} / ${player.xpToNext}'),
                 _row('Total XP (local)', '${player.totalXp}'),

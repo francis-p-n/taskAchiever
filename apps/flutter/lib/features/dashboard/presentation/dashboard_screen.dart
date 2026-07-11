@@ -696,9 +696,35 @@ class _RightColumn extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              _kv('Update Status', ''),
               _kv('Age', '${player.age}'),
-              _kv('Job', player.job),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Class',
+                        style: TextStyle(
+                            fontSize: 12, color: NotionColors.textMuted)),
+                    Tooltip(
+                      message: player.playerClass.tagline,
+                      child: Row(
+                        children: [
+                          Icon(player.playerClass.icon,
+                              size: 13, color: NotionColors.purple),
+                          const SizedBox(width: 4),
+                          Text(
+                            player.playerClass.label,
+                            style: const TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _kv('Perk',
+                  '+50% ${player.playerClass.favoredArea.label} XP'),
               _kv('Level', '${player.level}'),
               const SizedBox(height: 8),
               Text(

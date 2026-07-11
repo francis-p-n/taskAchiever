@@ -6,14 +6,19 @@ import 'package:life_os/features/player/application/player_notifier.dart';
 import 'package:life_os/features/player/domain/player.dart';
 import 'package:life_os/features/quests/application/quests_notifier.dart';
 
-/// Completes [quest]: updates the quest list, awards XP, celebrates a
+/// Completes [quest]: updates the quest list, awards XP (with the class
+/// bonus when the quest is in the player's favored area), celebrates a
 /// level-up, and offers an Undo action on the confirmation snackbar.
 /// Shared by the Quests screen and the dashboard.
 void completeQuest(BuildContext context, WidgetRef ref, QuestEntry quest) {
   if (!ref.read(questsProvider.notifier).complete(quest)) return;
 
+  final playerClass = ref.read(playerProvider).playerClass;
+  final earned = playerClass.boostedXp(quest.xp, quest.area);
+  final bonus = earned - quest.xp;
+
   final result =
-      ref.read(playerProvider.notifier).gainXp(quest.xp, area: quest.area);
+      ref.read(playerProvider.notifier).gainXp(earned, area: quest.area);
 
   if (result.leveledUp) {
     showDialog(
@@ -24,7 +29,11 @@ void completeQuest(BuildContext context, WidgetRef ref, QuestEntry quest) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-            '${quest.title} complete  +${result.xpGained} XP  •  ${quest.area.label}'),
+          bonus > 0
+              ? '${quest.title} complete  +$earned XP '
+                  '(${playerClass.label} bonus +$bonus)  •  ${quest.area.label}'
+              : '${quest.title} complete  +$earned XP  •  ${quest.area.label}',
+        ),
         action: SnackBarAction(
           label: 'Undo',
           onPressed: () => undoQuest(context, ref, quest),
@@ -34,14 +43,18 @@ void completeQuest(BuildContext context, WidgetRef ref, QuestEntry quest) {
   }
 }
 
-/// Reverts a completion: restores the quest and takes back the XP.
+/// Reverts a completion: restores the quest and takes back exactly what the
+/// completion awarded (bonus included — same formula, so it's symmetric as
+/// long as the class hasn't changed in between).
 void undoQuest(BuildContext context, WidgetRef ref, QuestEntry quest) {
   if (!ref.read(questsProvider.notifier).uncomplete(quest)) return;
 
-  ref.read(playerProvider.notifier).revertXp(quest.xp, area: quest.area);
+  final playerClass = ref.read(playerProvider).playerClass;
+  final earned = playerClass.boostedXp(quest.xp, quest.area);
+  ref.read(playerProvider.notifier).revertXp(earned, area: quest.area);
   ScaffoldMessenger.of(context).hideCurrentSnackBar();
   ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text('${quest.title} restored  −${quest.xp} XP')),
+    SnackBar(content: Text('${quest.title} restored  −$earned XP')),
   );
 }
 

@@ -3,8 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_os/core/theme.dart';
 import 'package:life_os/features/player/application/player_notifier.dart';
+import 'package:life_os/features/player/domain/player.dart';
 
-/// Edits the Player ID card (name / job / age). Applies the change itself,
+/// Edits the Player ID card (name / class / age). Applies the change itself,
 /// so call sites just `showDialog(builder: (_) => const EditPlayerDialog())`.
 class EditPlayerDialog extends ConsumerStatefulWidget {
   const EditPlayerDialog({super.key});
@@ -15,22 +16,21 @@ class EditPlayerDialog extends ConsumerStatefulWidget {
 
 class _EditPlayerDialogState extends ConsumerState<EditPlayerDialog> {
   late final TextEditingController _name;
-  late final TextEditingController _job;
   late final TextEditingController _age;
+  late PlayerClass _playerClass;
 
   @override
   void initState() {
     super.initState();
     final player = ref.read(playerProvider);
     _name = TextEditingController(text: player.name);
-    _job = TextEditingController(text: player.job);
     _age = TextEditingController(text: '${player.age}');
+    _playerClass = player.playerClass;
   }
 
   @override
   void dispose() {
     _name.dispose();
-    _job.dispose();
     _age.dispose();
     super.dispose();
   }
@@ -40,7 +40,7 @@ class _EditPlayerDialogState extends ConsumerState<EditPlayerDialog> {
     if (name.isEmpty) return;
     ref.read(playerProvider.notifier).updateProfile(
           name: name,
-          job: _job.text.trim().isEmpty ? null : _job.text.trim(),
+          job: _playerClass.label,
           age: int.tryParse(_age.text.trim()),
         );
     // Grab the messenger before popping — looking it up from this context
@@ -79,20 +79,14 @@ class _EditPlayerDialogState extends ConsumerState<EditPlayerDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
-              controller: _name,
-              autofocus: true,
-              style: const TextStyle(fontSize: 13),
-              decoration: _decoration('Name'),
-            ),
-            const SizedBox(height: 14),
             Row(
               children: [
                 Expanded(
                   child: TextField(
-                    controller: _job,
+                    controller: _name,
+                    autofocus: true,
                     style: const TextStyle(fontSize: 13),
-                    decoration: _decoration('Job / class'),
+                    decoration: _decoration('Name'),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -107,6 +101,61 @@ class _EditPlayerDialogState extends ConsumerState<EditPlayerDialog> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Class',
+                  style: NotionType.mono(size: 10.5, letterSpacing: 0.8)),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final playerClass in PlayerClass.values)
+                  ChoiceChip(
+                    selected: _playerClass == playerClass,
+                    onSelected: (_) =>
+                        setState(() => _playerClass = playerClass),
+                    avatar: Icon(
+                      playerClass.icon,
+                      size: 14,
+                      color: _playerClass == playerClass
+                          ? NotionColors.textPrimary
+                          : NotionColors.textMuted,
+                    ),
+                    label: Text(playerClass.label,
+                        style: const TextStyle(fontSize: 12)),
+                    selectedColor: NotionColors.surfaceHover,
+                    backgroundColor: NotionColors.surface,
+                    side: BorderSide(
+                      color: _playerClass == playerClass
+                          ? const Color(0xFF5A5A5A)
+                          : NotionColors.border,
+                    ),
+                    showCheckmark: false,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // The class is a real choice, so say what it does.
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: NotionColors.surfaceHover.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: NotionColors.border),
+              ),
+              child: Text(
+                '${_playerClass.tagline}\n'
+                '+50% XP on ${_playerClass.favoredArea.label} quests.',
+                style: const TextStyle(
+                    fontSize: 11.5,
+                    height: 1.5,
+                    color: NotionColors.textMuted),
+              ),
             ),
           ],
         ),

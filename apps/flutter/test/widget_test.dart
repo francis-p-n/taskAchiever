@@ -3,6 +3,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:life_os/features/player/domain/player.dart';
 
 void main() {
+  group('Player classes', () {
+    test('favored-area quests earn 1.5x, others unchanged', () {
+      expect(PlayerClass.warrior.boostedXp(10, Area.physical), 15);
+      expect(PlayerClass.warrior.boostedXp(10, Area.intel), 10);
+      expect(PlayerClass.healer.boostedXp(5, Area.care), 8); // rounds .5 up
+    });
+
+    test('job string parses to a class, legacy values default to Mage', () {
+      expect(PlayerClassX.fromJob('warrior'), PlayerClass.warrior);
+      expect(PlayerClassX.fromJob(' Sage '), PlayerClass.sage);
+      expect(PlayerClassX.fromJob('Adventurer'), PlayerClass.mage);
+      expect(const Player(job: 'Monk').playerClass, PlayerClass.monk);
+    });
+  });
+
   group('Player leveling', () {
     test('xp curve grows with level', () {
       expect(Player.xpForLevel(1), 100);
