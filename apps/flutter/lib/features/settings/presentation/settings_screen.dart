@@ -12,6 +12,7 @@ import 'package:life_os/shared/widgets/connect_dialog.dart';
 import 'package:life_os/shared/widgets/integration_card.dart';
 import 'package:life_os/shared/widgets/metric_callout.dart';
 import 'package:life_os/shared/widgets/notion_card.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -118,6 +119,33 @@ class SettingsScreen extends ConsumerWidget {
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Backend set to $trimmed')),
+                );
+              }
+            },
+          ),
+          const SizedBox(height: 12),
+          _UtilityIntegrationRow(
+            icon: Icons.key_outlined,
+            name: 'Access code',
+            description:
+                'Required by hosted backends (AUTH_ACCESS_CODE) so only you '
+                'can sign in. Leave unset for a local backend.',
+            actionLabel: 'Set',
+            onAction: () async {
+              final code = await showConnectDialog(
+                context,
+                title: 'Access code',
+                fieldLabel: 'Access code',
+                obscure: true,
+                helpText: 'The AUTH_ACCESS_CODE value configured on your '
+                    'deployed backend.',
+              );
+              if (code == null || !context.mounted) return;
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString(accessCodePrefsKey, code.trim());
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Access code saved.')),
                 );
               }
             },

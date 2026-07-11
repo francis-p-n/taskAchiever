@@ -56,9 +56,11 @@ final userStatsProvider = FutureProvider<UserStatsDto?>((ref) {
   return ref.watch(statsRepositoryProvider).fetchStats();
 });
 
-/// Fetches server stats at startup and makes the backend's lifetime XP the
-/// source of truth for the player's level/progress. No-op when offline.
+/// Startup reconciliation with the backend: first adopt/push the player
+/// profile (cross-device last-write-wins), then rebase level/progress on the
+/// server's lifetime XP. No-op when offline.
 final playerHydrationProvider = FutureProvider<void>((ref) async {
+  await ref.read(playerProvider.notifier).syncProfile();
   final stats = await ref.watch(statsRepositoryProvider).fetchStats();
   if (stats != null) {
     await ref

@@ -83,6 +83,10 @@ export const userSettings = pgTable('user_settings', {
   syncEnabled: boolean('sync_enabled').default(true),
   yearlyGoal: integer('yearly_goal').default(52),
   remindersEnabled: boolean('reminders_enabled').default(true),
+  // Client player profile (name/class/energies/daily counters) as an opaque
+  // JSON blob — the server only arbitrates last-write-wins between devices.
+  playerProfile: text('player_profile'),
+  playerProfileUpdatedAt: timestamp('player_profile_updated_at'),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 

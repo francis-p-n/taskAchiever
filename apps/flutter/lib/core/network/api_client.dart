@@ -6,6 +6,10 @@ const _devEmail = 'mugicianx@gmail.com';
 const _tokenPrefsKey = 'api_auth_token';
 const _urlPrefsKey = 'backend_url';
 
+/// Matches the backend's AUTH_ACCESS_CODE on hosted deployments (Settings →
+/// Server). Local dev backends don't set one, so this stays empty there.
+const accessCodePrefsKey = 'auth_access_code';
+
 /// Compile-time default, overridable per install from Settings → Server.
 /// On the desktop the backend runs locally; a phone points this at the PC's
 /// LAN address (http://192.168.x.x:3000/api) or a hosted deployment.
@@ -68,9 +72,15 @@ class _AuthInterceptor extends Interceptor {
 
   Future<String?> _login() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final accessCode = prefs.getString(accessCodePrefsKey);
       final response = await _dio.post(
         '/auth/dev',
-        data: {'email': _devEmail},
+        data: {
+          'email': _devEmail,
+          if (accessCode != null && accessCode.isNotEmpty)
+            'accessCode': accessCode,
+        },
         options: Options(headers: {'skip-auth': 'true'}),
       );
       final token = response.data['token'] as String?;

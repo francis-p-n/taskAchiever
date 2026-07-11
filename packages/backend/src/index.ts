@@ -7,7 +7,32 @@ import authRoutes from './routes/auth.routes';
 import questRoutes from './routes/quest.routes';
 import { errorHandler } from './lib/errors';
 
-const fastify = Fastify({ logger: true });
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Fail fast on config a production deployment must not run without. A dev
+// machine keeps working with defaults; a hosted instance refuses to boot
+// half-secured.
+if (isProduction) {
+  const missing = ['DATABASE_URL', 'JWT_SECRET'].filter((k) => !process.env[k]);
+  if (missing.length > 0) {
+    console.error(`FATAL: missing required env in production: ${missing.join(', ')}`);
+    process.exit(1);
+  }
+  if (!process.env.AUTH_ACCESS_CODE) {
+    console.error(
+      'FATAL: AUTH_ACCESS_CODE is required in production — without it the ' +
+      'dev login endpoint lets anyone claim any account.'
+    );
+    process.exit(1);
+  }
+}
+
+const fastify = Fastify({
+  logger: { level: process.env.LOG_LEVEL || (isProduction ? 'warn' : 'info') },
+  // Hosted deployments sit behind a reverse proxy; without this the rate
+  // limiter would key every client on the proxy's IP.
+  trustProxy: isProduction,
+});
 
 // Uniform error envelope for handler throws, schema-validation failures
 // and unknown routes: { error, message, statusCode }.
@@ -34,8 +59,15 @@ fastify.addContentTypeParser('application/json', { parseAs: 'string' }, (req, bo
   }
 });
 
-// Register plugins
-fastify.register(cors, { origin: true });
+// Register plugins. Native clients (Dio) send no Origin so CORS never
+// applies to them; ALLOWED_ORIGINS only matters if a web client appears.
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+fastify.register(cors, {
+  origin: allowedOrigins.length > 0 ? allowedOrigins : !isProduction,
+});
 fastify.register(jwt, { secret: process.env.JWT_SECRET || 'supersecret_life_achiever_key' });
 
 // Rate limiting: Redis-backed when REDIS_URL is set (shared across
@@ -73,6 +105,7 @@ fastify.register(require('./routes/strava.routes').default);
 fastify.register(require('./routes/summary.routes').default);
 fastify.register(require('./routes/export.routes').default);
 fastify.register(require('./routes/notifications.routes').default);
+fastify.register(require('./routes/player.routes').default);
 
 // Health check route
 fastify.get('/api/health', async (request, reply) => {
@@ -89,5 +122,14 @@ const start = async () => {
     process.exit(1);
   }
 };
+
+// Containers stop with SIGTERM: finish in-flight requests, then exit.
+for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+  process.once(signal, async () => {
+    require('./jobs/scheduler').stopScheduler();
+    await fastify.close();
+    process.exit(0);
+  });
+}
 
 start();

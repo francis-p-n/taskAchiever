@@ -16,12 +16,29 @@ export default async function authRoutes(fastify: FastifyInstance) {
         properties: {
           email: { type: 'string', format: 'email', maxLength: 254 },
           name: { type: 'string', maxLength: 200 },
+          accessCode: { type: 'string', maxLength: 200 },
         },
         required: ['email'],
       },
     },
   }, async (request, reply) => {
-    const { email, name } = request.body as { email: string; name?: string };
+    const { email, name, accessCode } = request.body as {
+      email: string;
+      name?: string;
+      accessCode?: string;
+    };
+
+    // On a publicly reachable deployment AUTH_ACCESS_CODE is mandatory
+    // (enforced at boot): this endpoint would otherwise hand out a token
+    // for any email to anyone who finds the URL.
+    const requiredCode = process.env.AUTH_ACCESS_CODE;
+    if (requiredCode && accessCode !== requiredCode) {
+      return reply.status(401).send({
+        error: 'ACCESS_CODE',
+        message: 'Invalid or missing access code',
+        statusCode: 401,
+      });
+    }
 
     let user = await db.query.users.findFirst({ where: eq(users.email, email) });
 

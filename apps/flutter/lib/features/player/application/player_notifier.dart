@@ -1,8 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:life_os/features/player/data/profile_repository.dart';
 import 'package:life_os/features/player/domain/player.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _prefsKey = 'player_state_v2';
+const _savedAtKey = 'player_state_saved_at_v1';
 
 /// Result of an XP gain, so the UI can celebrate level-ups.
 class XpGainResult {
@@ -18,12 +22,14 @@ class XpGainResult {
 }
 
 class PlayerNotifier extends StateNotifier<Player> {
-  PlayerNotifier() : super(const Player()) {
+  PlayerNotifier(this._ref) : super(const Player()) {
     _loading = _load();
   }
 
+  final Ref _ref;
   SharedPreferences? _prefs;
   Future<void>? _loading;
+  DateTime _savedAt = DateTime.fromMillisecondsSinceEpoch(0);
 
   Future<SharedPreferences> _instance() async =>
       _prefs ??= await SharedPreferences.getInstance();
@@ -33,12 +39,53 @@ class PlayerNotifier extends StateNotifier<Player> {
     final raw = prefs.getString(_prefsKey);
     if (raw != null) {
       state = Player.fromJson(raw);
+      _savedAt = DateTime.tryParse(prefs.getString(_savedAtKey) ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0);
     }
   }
 
   Future<void> _save() async {
+    _savedAt = DateTime.now().toUtc();
     final prefs = await _instance();
-    await prefs.setString(_prefsKey, state.toJson());
+    final json = state.toJson();
+    await prefs.setString(_prefsKey, json);
+    await prefs.setString(_savedAtKey, _savedAt.toIso8601String());
+    // Mirror to the server so the phone and desktop share one player.
+    // Fire-and-forget: offline just means the next device wins on recency.
+    _ref
+        .read(profileRepositoryProvider)
+        .push(json, _savedAt)
+        .then((winner) {
+      if (winner?.profile != null && mounted) {
+        _adopt(winner!);
+      }
+    }).catchError((_) {});
+  }
+
+  /// Takes over a newer profile from another device (no re-push).
+  void _adopt(RemoteProfile remote) {
+    state = Player.fromJson(jsonEncode(remote.profile));
+    _savedAt = remote.updatedAt ?? DateTime.now().toUtc();
+    _instance().then((prefs) async {
+      await prefs.setString(_prefsKey, state.toJson());
+      await prefs.setString(_savedAtKey, _savedAt.toIso8601String());
+    });
+  }
+
+  /// Startup reconciliation: adopt the server profile when another device
+  /// wrote more recently; push ours when we're ahead.
+  Future<void> syncProfile() async {
+    await _loading;
+    final remote = await _ref.read(profileRepositoryProvider).fetch();
+    if (remote == null || !mounted) return; // offline
+
+    if (remote.profile != null &&
+        remote.updatedAt != null &&
+        remote.updatedAt!.isAfter(_savedAt)) {
+      _adopt(remote);
+    } else if (_savedAt.millisecondsSinceEpoch > 0) {
+      await _ref.read(profileRepositoryProvider).push(state.toJson(), _savedAt);
+    }
   }
 
   /// Rebases level/progress on the backend's lifetime XP (user_stats).
@@ -142,5 +189,5 @@ class PlayerNotifier extends StateNotifier<Player> {
 }
 
 final playerProvider = StateNotifierProvider<PlayerNotifier, Player>(
-  (ref) => PlayerNotifier(),
+  (ref) => PlayerNotifier(ref),
 );

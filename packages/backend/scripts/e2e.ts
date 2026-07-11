@@ -204,6 +204,25 @@ async function main() {
     check('push test no-ops without FIREBASE_SERVICE_ACCOUNT',
       pushTest.status === 200 && pushBody.sent === 0);
 
+    // --- player profile sync (last write wins) --------------------------------
+    const newer = new Date().toISOString();
+    const older = new Date(Date.now() - 60_000).toISOString();
+    const putProfile = (await (await fetch(`${BASE}/api/player/profile`, {
+      method: 'PUT', headers: auth,
+      body: JSON.stringify({ profile: { name: 'E2E', level: 3 }, updatedAt: newer }),
+    })).json()) as any;
+    check('profile write accepted', putProfile.accepted === true);
+
+    const staleWrite = (await (await fetch(`${BASE}/api/player/profile`, {
+      method: 'PUT', headers: auth,
+      body: JSON.stringify({ profile: { name: 'Stale' }, updatedAt: older }),
+    })).json()) as any;
+    check('stale profile write loses, server copy returned',
+      staleWrite.accepted === false && staleWrite.profile?.name === 'E2E');
+
+    const gotProfile = (await (await fetch(`${BASE}/api/player/profile`, { headers: auth })).json()) as any;
+    check('profile readback', gotProfile.profile?.name === 'E2E' && gotProfile.updatedAt === newer);
+
     // --- sidequest suggestions (heuristic fallback without AI key) -----------
     const suggest = (await (await fetch(`${BASE}/api/ai/suggest-quests`, {
       method: 'POST', headers: auth, body: JSON.stringify({ focus: 'Physical' }),
