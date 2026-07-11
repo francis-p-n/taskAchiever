@@ -103,7 +103,25 @@ ThemeData buildGameTheme() {
       );
 
   return base.copyWith(
-    textTheme: text,
+    // A deliberate scale instead of Material defaults: serif display for
+    // every heading slot, calm 13px body, mono labels. Widgets that just say
+    // Text('...') now land on-system automatically.
+    textTheme: text.copyWith(
+      headlineSmall: NotionType.display(size: 22, weight: FontWeight.w700),
+      titleLarge: NotionType.display(size: 18),
+      titleMedium: NotionType.display(size: 15),
+      titleSmall: NotionType.display(size: 13.5),
+      bodyLarge: const TextStyle(
+          fontSize: 14, height: 1.5, fontFamilyFallback: _fontFallback),
+      bodyMedium: const TextStyle(
+          fontSize: 13, height: 1.5, fontFamilyFallback: _fontFallback),
+      bodySmall: const TextStyle(
+          fontSize: 12,
+          height: 1.4,
+          color: NotionColors.textMuted,
+          fontFamilyFallback: _fontFallback),
+      labelSmall: NotionType.mono(size: 10.5, letterSpacing: 0.6),
+    ),
     appBarTheme: AppBarTheme(
       backgroundColor: Colors.transparent,
       elevation: 0,

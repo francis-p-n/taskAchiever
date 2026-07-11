@@ -39,11 +39,10 @@ class MetricCallout extends StatelessWidget {
                   label.toUpperCase(),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 10,
+                  style: NotionType.mono(
+                    size: 10,
+                    weight: FontWeight.w600,
                     letterSpacing: 0.8,
-                    fontWeight: FontWeight.w600,
-                    color: NotionColors.textMuted,
                   ),
                 ),
               ),
@@ -52,9 +51,9 @@ class MetricCallout extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
+            style: NotionType.display(
+              size: 22,
+              weight: FontWeight.w700,
               color: color,
             ),
           ),
