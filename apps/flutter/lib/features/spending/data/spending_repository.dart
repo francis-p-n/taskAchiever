@@ -82,6 +82,28 @@ class SpendingRepository {
     }
   }
 
+  /// Imports a Google Wallet (Takeout) or bank CSV. Returns the server's
+  /// counts, or null when offline / the CSV was rejected.
+  Future<({int imported, int skipped, int failed})?> importCsv(
+      String csv) async {
+    try {
+      final response = await _dio.post(
+        '/spending/import',
+        data: {'csv': csv},
+        // Large files insert row-by-row server-side.
+        options: Options(receiveTimeout: const Duration(seconds: 60)),
+      );
+      final data = response.data as Map<String, dynamic>;
+      return (
+        imported: (data['imported'] as num?)?.toInt() ?? 0,
+        skipped: (data['skipped'] as num?)?.toInt() ?? 0,
+        failed: (data['failed'] as num?)?.toInt() ?? 0,
+      );
+    } on DioException {
+      return null;
+    }
+  }
+
   /// Returns false when the backend rejected the write or is offline.
   Future<bool> addTransaction({
     required int amountCents,

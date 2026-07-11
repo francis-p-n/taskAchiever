@@ -189,6 +189,25 @@ async function main() {
     check('push test no-ops without FIREBASE_SERVICE_ACCOUNT',
       pushTest.status === 200 && pushBody.sent === 0);
 
+    // --- wallet CSV import ----------------------------------------------------
+    const run = Date.now();
+    const walletCsv =
+      'Time,Transaction ID,Description,Amount\n' +
+      `"Jul 10, 2026, 3:45:12 PM UTC",tx-${run}-1,Coffee Shop,"$4.50"\n` +
+      `"Jul 10, 2026, 4:00:00 PM UTC",tx-${run}-2,Grocery Store,"$23.10"\n` +
+      `bad-date,tx-${run}-3,Broken Row,not-money\n`;
+    const importRes = await fetch(`${BASE}/api/spending/import`, {
+      method: 'POST', headers: auth, body: JSON.stringify({ csv: walletCsv }),
+    });
+    const importBody = (await importRes.json()) as any;
+    check('wallet CSV import inserts parseable rows', importRes.status === 200 &&
+      importBody.imported === 2 && importBody.failed === 1, JSON.stringify(importBody));
+
+    const reimport = (await (await fetch(`${BASE}/api/spending/import`, {
+      method: 'POST', headers: auth, body: JSON.stringify({ csv: walletCsv }),
+    })).json()) as any;
+    check('re-importing the same file dedupes', reimport.imported === 0 && reimport.skipped === 2);
+
     // --- cleanup ------------------------------------------------------------
     for (const id of [qid, q2]) {
       await fetch(`${BASE}/api/quests/${id}`, { method: 'DELETE', headers: auth });
