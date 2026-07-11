@@ -81,7 +81,7 @@ class DashboardScreen extends ConsumerWidget {
 // Greeting: who you are, where today stands, what to do next
 // ---------------------------------------------------------------------------
 
-class _GreetingHeader extends StatelessWidget {
+class _GreetingHeader extends ConsumerWidget {
   final Player player;
   final int openQuests;
 
@@ -105,7 +105,7 @@ class _GreetingHeader extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -125,6 +125,24 @@ class _GreetingHeader extends StatelessWidget {
                 context, Icons.restaurant_outlined, 'Log a meal', '/food'),
             _quickAction(context, Icons.fitness_center_outlined,
                 'Log a workout', '/fitness'),
+            SizedBox(
+              height: 30,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  ref.read(playerProvider.notifier).resetEnergies();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('All energy bars refilled.'),
+                      duration: Duration(milliseconds: 1200),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.battery_charging_full_outlined,
+                    size: 14),
+                label: const Text('Refill energy',
+                    style: TextStyle(fontSize: 12)),
+              ),
+            ),
           ],
         ),
       ],
@@ -260,119 +278,14 @@ class _LeftColumn extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 12),
-        const NotionSectionTitle(
-            icon: Icons.battery_5_bar_outlined, title: 'Daily Energy'),
-        for (final e in Energy.values)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: NotionCard(
-              color: e.bgColor,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(e.icon, size: 13, color: e.color),
-                      const SizedBox(width: 6),
-                      Text(
-                        e.label,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: e.color,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  BlockBar(
-                    value: player.energyOf(e),
-                    max: maxEnergy,
-                    color: e.color,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        const SizedBox(height: 4),
-        const NotionSectionTitle(
-            icon: Icons.calendar_today_outlined, title: "Today's Report"),
-        NotionCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _weekdayName(DateTime.now().weekday),
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Text(
-                    'Progress ',
-                    style: TextStyle(
-                        fontSize: 12, color: NotionColors.textMuted),
-                  ),
-                  Expanded(
-                    child: BlockBar(
-                      value: player.tasksToday.clamp(0, 10),
-                      max: 10,
-                      color: NotionColors.green,
-                      showLabel: false,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "You've Gained ${player.xpToday} XPs Today",
-                style: const TextStyle(
-                    fontSize: 12, color: NotionColors.textPrimary),
-              ),
-              Text(
-                "You've Completed ${player.tasksToday} Tasks Today",
-                style: const TextStyle(
-                    fontSize: 12, color: NotionColors.textPrimary),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'You got this!',
-                style: TextStyle(fontSize: 12, color: NotionColors.yellow),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 4),
+        const NotionSectionTitle(icon: Icons.event_outlined, title: 'Up Next'),
+        const _UpNext(),
+        const SizedBox(height: 12),
         const NotionSectionTitle(
             icon: Icons.today_outlined, title: 'Today at a Glance'),
         const _MealsGlanceCard(),
         const SizedBox(height: 8),
         const _SpendGlanceCard(),
-        const SizedBox(height: 12),
-        TextButton.icon(
-          onPressed: () {
-            ref.read(playerProvider.notifier).resetEnergies();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('All energy bars refilled.'),
-                duration: Duration(milliseconds: 1200),
-              ),
-            );
-          },
-          style: TextButton.styleFrom(
-            foregroundColor: NotionColors.textMuted,
-            alignment: Alignment.centerLeft,
-          ),
-          icon: const Icon(Icons.refresh, size: 16),
-          label: const Text('Reset All Energy',
-              style: TextStyle(fontSize: 13)),
-        ),
-        const SizedBox(height: 8),
-        const NotionSectionTitle(icon: Icons.event_outlined, title: 'Up Next'),
-        const _UpNext(),
       ],
     );
   }
@@ -857,28 +770,6 @@ class _RightColumn extends ConsumerWidget {
                 color: NotionColors.orange,
                 showLabel: false,
               ),
-              const Divider(height: 24),
-              for (final area in Area.values)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(area.label,
-                          style: const TextStyle(
-                              fontSize: 12,
-                              color: NotionColors.textMuted)),
-                      Text(
-                        '${player.areaOf(area)}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: _areaColor(area),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               const Divider(height: 24),
               _kv('Total', '${player.totalXp} XP'),
               const SizedBox(height: 12),
