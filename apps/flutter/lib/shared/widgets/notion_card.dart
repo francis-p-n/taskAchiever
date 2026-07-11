@@ -84,11 +84,7 @@ class NotionSectionTitle extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: NotionColors.textPrimary,
-              ),
+              style: NotionType.display(size: 15),
             ),
           ),
           ?trailing,
@@ -114,18 +110,16 @@ class NotionTag extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(4),
+        // Hairline tinted edge keeps chips crisp against colored cards.
+        border: Border.all(color: color.withValues(alpha: 0.28), width: 0.5),
       ),
       child: Text(
         text,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-          color: color,
-        ),
+        style: NotionType.mono(size: 11, color: color),
       ),
     );
   }

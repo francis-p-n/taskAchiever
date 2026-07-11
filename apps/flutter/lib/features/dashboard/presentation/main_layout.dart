@@ -4,6 +4,52 @@ import 'package:go_router/go_router.dart';
 import 'package:life_os/core/theme.dart';
 import 'package:life_os/features/player/application/player_notifier.dart';
 
+/// Barely-there color atmosphere behind every screen: a green breath at the
+/// top-left and a purple one at the bottom-right, ~4% alpha. It reads as
+/// depth, not decoration — the flat charcoal stays in charge.
+class _Atmosphere extends StatelessWidget {
+  final Widget child;
+
+  const _Atmosphere({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: const Alignment(-0.9, -1.1),
+                  radius: 1.3,
+                  colors: [
+                    NotionColors.green.withValues(alpha: 0.045),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: const Alignment(1.1, 1.2),
+                    radius: 1.2,
+                    colors: [
+                      NotionColors.purple.withValues(alpha: 0.04),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        child,
+      ],
+    );
+  }
+}
+
 class MainLayout extends ConsumerWidget {
   final Widget child;
 
@@ -16,18 +62,20 @@ class MainLayout extends ConsumerWidget {
 
     if (isDesktop) {
       return Scaffold(
+        backgroundColor: NotionColors.background,
         body: Row(
           children: [
             _buildSidebar(context, ref),
             const VerticalDivider(thickness: 1, width: 1),
-            Expanded(child: child),
+            Expanded(child: _Atmosphere(child: child)),
           ],
         ),
       );
     }
 
     return Scaffold(
-      body: child,
+      backgroundColor: NotionColors.background,
+      body: _Atmosphere(child: child),
       bottomNavigationBar: _buildBottomNav(context),
     );
   }
@@ -81,10 +129,10 @@ class MainLayout extends ConsumerWidget {
               ),
               child: Text(
                 'LV ${player.level}',
-                style: const TextStyle(
+                style: NotionType.mono(
+                  size: 11,
+                  weight: FontWeight.w700,
                   color: NotionColors.red,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 11,
                 ),
               ),
             ),

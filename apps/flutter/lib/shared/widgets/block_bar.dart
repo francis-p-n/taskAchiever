@@ -25,15 +25,22 @@ class BlockBar extends StatelessWidget {
           child: Row(
             children: List.generate(max, (i) {
               final filled = i < value;
+              // Blocks light up left-to-right on first build, like the
+              // template's energy bars filling in.
               return Expanded(
-                child: Container(
-                  height: 8,
-                  margin: EdgeInsets.only(right: i == max - 1 ? 0 : 3),
-                  decoration: BoxDecoration(
-                    color: filled
-                        ? color
-                        : NotionColors.surfaceHover,
-                    borderRadius: BorderRadius.circular(2),
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: 1),
+                  duration: Duration(milliseconds: 200 + i * 45),
+                  curve: Curves.easeOut,
+                  builder: (context, t, _) => Container(
+                    height: 8,
+                    margin: EdgeInsets.only(right: i == max - 1 ? 0 : 3),
+                    decoration: BoxDecoration(
+                      color: filled
+                          ? color.withValues(alpha: t)
+                          : NotionColors.surfaceHover,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
               );
@@ -44,11 +51,7 @@ class BlockBar extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             '$value/$max',
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: NotionColors.textMuted,
-            ),
+            style: NotionType.mono(size: 11, weight: FontWeight.w600),
           ),
         ],
       ],

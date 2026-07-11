@@ -14,6 +14,7 @@ import 'package:life_os/features/settings/presentation/edit_player_dialog.dart';
 import 'package:life_os/shared/widgets/block_bar.dart';
 import 'package:life_os/shared/widgets/integration_card.dart';
 import 'package:life_os/shared/widgets/notion_card.dart';
+import 'package:life_os/shared/widgets/reveal.dart';
 
 /// Daily XP goal shown on the gold Daily Target card.
 const _dailyTargetXp = 50;
@@ -32,25 +33,32 @@ class DashboardScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _EnergyRow(player: player),
+            Reveal(child: _EnergyRow(player: player)),
             const SizedBox(height: 16),
             if (isWide)
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(width: 260, child: _LeftColumn(player: player)),
+                  SizedBox(
+                      width: 260,
+                      child: Reveal(order: 1, child: _LeftColumn(player: player))),
                   const SizedBox(width: 16),
-                  Expanded(child: _CenterColumn(player: player)),
+                  Expanded(
+                      child:
+                          Reveal(order: 2, child: _CenterColumn(player: player))),
                   const SizedBox(width: 16),
-                  SizedBox(width: 300, child: _RightColumn(player: player)),
+                  SizedBox(
+                      width: 300,
+                      child:
+                          Reveal(order: 3, child: _RightColumn(player: player))),
                 ],
               )
             else ...[
-              _LeftColumn(player: player),
+              Reveal(order: 1, child: _LeftColumn(player: player)),
               const SizedBox(height: 16),
-              _CenterColumn(player: player),
+              Reveal(order: 2, child: _CenterColumn(player: player)),
               const SizedBox(height: 16),
-              _RightColumn(player: player),
+              Reveal(order: 3, child: _RightColumn(player: player)),
             ],
           ],
         ),
@@ -156,11 +164,11 @@ class _LeftColumn extends ConsumerWidget {
               const SizedBox(width: 8),
               Text(
                 'LEVEL ${player.level}',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+                style: NotionType.mono(
+                  size: 13,
+                  weight: FontWeight.w700,
                   color: NotionColors.red,
-                  letterSpacing: 0.5,
+                  letterSpacing: 1.2,
                 ),
               ),
               const Spacer(),
@@ -759,9 +767,9 @@ class _RightColumn extends ConsumerWidget {
               const SizedBox(height: 4),
               Text(
                 '${player.xpToday} / $_dailyTargetXp',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
+                style: NotionType.display(
+                  size: 24,
+                  weight: FontWeight.w700,
                   color: NotionColors.yellow,
                 ),
               ),
@@ -970,8 +978,7 @@ class _StreakCard extends ConsumerWidget {
             children: [
               Text(
                 '${stats.currentStreak} day${stats.currentStreak == 1 ? '' : 's'}',
-                style: const TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.w700),
+                style: NotionType.display(size: 19, weight: FontWeight.w700),
               ),
               Text(
                 'Longest ${stats.longestStreak}'

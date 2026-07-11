@@ -1,7 +1,44 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-/// System font stack, like Notion itself uses — no runtime font fetching.
+/// System font stack, like Notion itself uses — body text stays native.
 const _fontFallback = ['Segoe UI', 'Inter', 'Roboto', 'Helvetica Neue'];
+
+/// The app speaks in three typographic voices:
+///  - display: Fraunces, an editorial serif for section titles, app bars and
+///    hero numbers — the "aesthetic journal" register of the template.
+///  - mono: IBM Plex Mono for data (tags, counters, bar labels) — the quiet
+///    "operating system" register that earns the name lifeOS.
+///  - body: the system sans stack, exactly like Notion.
+/// Google Fonts falls back to the system stack when offline, so the
+/// local-first app never blocks on a font fetch.
+class NotionType {
+  static TextStyle display({
+    double size = 14,
+    FontWeight weight = FontWeight.w600,
+    Color color = NotionColors.textPrimary,
+    double? height,
+  }) =>
+      GoogleFonts.fraunces(
+        fontSize: size,
+        fontWeight: weight,
+        color: color,
+        height: height,
+      );
+
+  static TextStyle mono({
+    double size = 12,
+    FontWeight weight = FontWeight.w500,
+    Color color = NotionColors.textMuted,
+    double letterSpacing = 0,
+  }) =>
+      GoogleFonts.ibmPlexMono(
+        fontSize: size,
+        fontWeight: weight,
+        color: color,
+        letterSpacing: letterSpacing,
+      );
+}
 
 /// Notion dark-mode palette, matching the Ashlynn Aspires gamification
 /// template: charcoal surfaces, muted text, soft colored callouts.
@@ -40,7 +77,9 @@ ThemeData buildGameTheme() {
   final base = ThemeData(
     brightness: Brightness.dark,
     useMaterial3: true,
-    scaffoldBackgroundColor: NotionColors.background,
+    // Transparent so screens inside the MainLayout shell let the shell's
+    // atmosphere layer show through; the shell paints the real charcoal.
+    scaffoldBackgroundColor: Colors.transparent,
     // shadcn components don't ripple — they shift background subtly.
     splashFactory: NoSplash.splashFactory,
     highlightColor: Colors.transparent,
@@ -66,15 +105,10 @@ ThemeData buildGameTheme() {
   return base.copyWith(
     textTheme: text,
     appBarTheme: AppBarTheme(
-      backgroundColor: NotionColors.background,
+      backgroundColor: Colors.transparent,
       elevation: 0,
       centerTitle: false,
-      titleTextStyle: const TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-        color: NotionColors.textPrimary,
-        fontFamilyFallback: _fontFallback,
-      ),
+      titleTextStyle: NotionType.display(size: 18),
       iconTheme: const IconThemeData(color: NotionColors.textMuted, size: 20),
     ),
     cardTheme: CardThemeData(
