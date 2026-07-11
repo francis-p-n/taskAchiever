@@ -36,13 +36,13 @@ extension EnergyX on Energy {
   String get caption {
     switch (this) {
       case Energy.hp:
-        return 'Begin Game! Light Tasks, Self-care.';
+        return 'Body battery — refill with rest and self-care.';
       case Energy.mood:
-        return 'Joy, Love, Wonder. Enjoy Life in Fullest.';
+        return 'How life feels right now. Protect the good days.';
       case Energy.focus:
-        return 'Light Cognitive Tasks.';
+        return 'Mental clarity available for deep work.';
       case Energy.motivation:
-        return 'Embrace Growth and Change.';
+        return 'Your drive to grow and take on change.';
     }
   }
 

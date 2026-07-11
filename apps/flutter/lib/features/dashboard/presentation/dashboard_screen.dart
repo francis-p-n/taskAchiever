@@ -25,6 +25,10 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final player = ref.watch(playerProvider);
+    final openQuests = ref
+        .watch(questsProvider)
+        .where((q) => !q.completed && !q.isSideQuest)
+        .length;
     final isWide = MediaQuery.of(context).size.width > 1000;
 
     return Scaffold(
@@ -33,7 +37,11 @@ class DashboardScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Reveal(child: _EnergyRow(player: player)),
+            Reveal(
+                child:
+                    _GreetingHeader(player: player, openQuests: openQuests)),
+            const SizedBox(height: 20),
+            Reveal(order: 1, child: _EnergyRow(player: player)),
             const SizedBox(height: 16),
             if (isWide)
               Row(
@@ -41,27 +49,94 @@ class DashboardScreen extends ConsumerWidget {
                 children: [
                   SizedBox(
                       width: 260,
-                      child: Reveal(order: 1, child: _LeftColumn(player: player))),
+                      child: Reveal(order: 2, child: _LeftColumn(player: player))),
                   const SizedBox(width: 16),
                   Expanded(
                       child:
-                          Reveal(order: 2, child: _CenterColumn(player: player))),
+                          Reveal(order: 3, child: _CenterColumn(player: player))),
                   const SizedBox(width: 16),
                   SizedBox(
                       width: 300,
                       child:
-                          Reveal(order: 3, child: _RightColumn(player: player))),
+                          Reveal(order: 4, child: _RightColumn(player: player))),
                 ],
               )
             else ...[
-              Reveal(order: 1, child: _LeftColumn(player: player)),
+              Reveal(order: 2, child: _LeftColumn(player: player)),
               const SizedBox(height: 16),
-              Reveal(order: 2, child: _CenterColumn(player: player)),
+              Reveal(order: 3, child: _CenterColumn(player: player)),
               const SizedBox(height: 16),
-              Reveal(order: 3, child: _RightColumn(player: player)),
+              Reveal(order: 4, child: _RightColumn(player: player)),
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Greeting: who you are, where today stands, what to do next
+// ---------------------------------------------------------------------------
+
+class _GreetingHeader extends StatelessWidget {
+  final Player player;
+  final int openQuests;
+
+  const _GreetingHeader({required this.player, required this.openQuests});
+
+  String get _greeting {
+    final hour = DateTime.now().hour;
+    if (hour < 5) return 'Up late';
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
+  String get _status {
+    final day = _weekdayName(DateTime.now().weekday);
+    if (openQuests == 0) {
+      return '$day · all quests clear — enjoy the day.';
+    }
+    final quests = openQuests == 1 ? '1 quest' : '$openQuests quests';
+    return '$day · $quests to go · ${player.xpToday} XP earned so far';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('$_greeting, ${player.name}',
+            style: NotionType.display(size: 26, weight: FontWeight.w700)),
+        const SizedBox(height: 4),
+        Text(_status,
+            style:
+                const TextStyle(fontSize: 13, color: NotionColors.textMuted)),
+        const SizedBox(height: 14),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _quickAction(context, Icons.add, 'New quest', '/quests'),
+            _quickAction(
+                context, Icons.restaurant_outlined, 'Log a meal', '/food'),
+            _quickAction(context, Icons.fitness_center_outlined,
+                'Log a workout', '/fitness'),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _quickAction(
+      BuildContext context, IconData icon, String label, String route) {
+    return SizedBox(
+      height: 30,
+      child: OutlinedButton.icon(
+        onPressed: () => context.go(route),
+        icon: Icon(icon, size: 14),
+        label: Text(label, style: const TextStyle(fontSize: 12)),
       ),
     );
   }
@@ -392,47 +467,6 @@ class _CenterColumn extends ConsumerWidget {
             child: const Text('View all',
                 style:
                     TextStyle(fontSize: 12, color: NotionColors.textMuted)),
-          ),
-        ),
-        // Plan / Today / Done tab strip, as on the template's quest board.
-        Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: Row(
-            children: [
-              for (final (label, active) in const [
-                ('Plan', false),
-                ('Today', true),
-                ('Done', false),
-              ])
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(4),
-                    onTap: () => context.go('/quests'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: active
-                            ? NotionColors.surfaceHover
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight:
-                              active ? FontWeight.w600 : FontWeight.w400,
-                          color: active
-                              ? NotionColors.textPrimary
-                              : NotionColors.textMuted,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
           ),
         ),
         _TodaysQuests(),
@@ -825,22 +859,9 @@ class _RightColumn extends ConsumerWidget {
             icon: Icons.local_fire_department_outlined, title: 'Streak'),
         const _StreakCard(),
         const SizedBox(height: 16),
-        const NotionSectionTitle(icon: Icons.notes_outlined, title: 'Task Logs'),
-        NotionCard(
-          padding: EdgeInsets.zero,
-          child: Column(
-            children: [
-              _logRow('Morning Gym', '+Strength', NotionColors.green,
-                  NotionColors.greenBg),
-              const Divider(height: 1),
-              _logRow('Morning Meditation', '+Psyche', NotionColors.purple,
-                  NotionColors.purpleBg),
-              const Divider(height: 1),
-              _logRow('Deep Work', '+Intel', NotionColors.blue,
-                  NotionColors.blueBg),
-            ],
-          ),
-        ),
+        const NotionSectionTitle(
+            icon: Icons.history_outlined, title: 'Recently Completed'),
+        const _RecentCompletions(),
       ],
     );
   }
@@ -877,14 +898,57 @@ class _RightColumn extends ConsumerWidget {
     );
   }
 
-  static Widget _logRow(String name, String tag, Color color, Color bg) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+}
+
+/// What actually got done today, from the same provider as the quest board —
+/// the mock log rows are gone, this is the player's real trail.
+class _RecentCompletions extends ConsumerWidget {
+  const _RecentCompletions();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final done =
+        ref.watch(questsProvider).where((q) => q.completed).take(4).toList();
+
+    if (done.isEmpty) {
+      return const NotionCard(
+        child: Text(
+          'Nothing finished yet — pick an easy quest to get rolling.',
+          style: TextStyle(fontSize: 12, color: NotionColors.textFaint),
+        ),
+      );
+    }
+
+    return NotionCard(
+      padding: EdgeInsets.zero,
+      child: Column(
         children: [
-          Text(name, style: const TextStyle(fontSize: 12)),
-          NotionTag(text: tag, color: color, bgColor: bg),
+          for (var i = 0; i < done.length; i++) ...[
+            if (i > 0) const Divider(height: 1),
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      done[i].title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  NotionTag(
+                    text: '+${done[i].area.label}',
+                    color: _RightColumn._areaColor(done[i].area),
+                    bgColor: NotionColors.surfaceHover,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
