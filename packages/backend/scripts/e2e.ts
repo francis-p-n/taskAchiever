@@ -2,7 +2,7 @@
 // server (PORT 3100) and the configured DATABASE_URL.
 // Run with: npx tsx scripts/e2e.ts
 import 'dotenv/config';
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 
 const BASE = 'http://127.0.0.1:3100';
 const EMAIL = 'e2e-test@lifeos.local';
@@ -33,6 +33,21 @@ async function waitForServer(timeoutMs = 30000): Promise<void> {
 }
 
 async function main() {
+  // A zombie server from an earlier run would answer with stale code while
+  // our spawn dies silently on EADDRINUSE — refuse to run in that state.
+  try {
+    const pre = await fetch(`${BASE}/api/health`, { signal: AbortSignal.timeout(1500) });
+    if (pre.ok) {
+      throw new Error(
+        `a server is already listening on ${BASE} — kill it first ` +
+        `(netstat -ano | findstr :3100, then taskkill /PID <pid> /T /F)`
+      );
+    }
+  } catch (err) {
+    if ((err as Error).message.includes('already listening')) throw err;
+    // connection refused → port is free, proceed
+  }
+
   const server = spawn('npx', ['tsx', 'src/index.ts'], {
     shell: true,
     env: { ...process.env, PORT: '3100' },
@@ -189,6 +204,15 @@ async function main() {
     check('push test no-ops without FIREBASE_SERVICE_ACCOUNT',
       pushTest.status === 200 && pushBody.sent === 0);
 
+    // --- sidequest suggestions (heuristic fallback without AI key) -----------
+    const suggest = (await (await fetch(`${BASE}/api/ai/suggest-quests`, {
+      method: 'POST', headers: auth, body: JSON.stringify({ focus: 'Physical' }),
+    })).json()) as any;
+    check('suggest-quests returns 5 ideas',
+      Array.isArray(suggest.suggestions) && suggest.suggestions.length === 5 &&
+      suggest.suggestions.every((s: any) => s.title && s.difficulty >= 1),
+      JSON.stringify(suggest).slice(0, 160));
+
     // --- wallet CSV import ----------------------------------------------------
     const run = Date.now();
     const walletCsv =
@@ -234,8 +258,21 @@ async function main() {
     process.exitCode = failed > 0 ? 1 : 0;
   } finally {
     server.kill();
-    // tsx spawns a child on Windows; make sure the port is freed.
-    spawn('taskkill', ['/pid', String(server.pid), '/T', '/F'], { shell: true });
+    // server.pid is the shell wrapper; by the time we tree-kill it the node
+    // grandchild is often orphaned and survives, poisoning the next run
+    // with a stale server. Kill whatever still owns the port instead.
+    try {
+      const netstat = execSync('netstat -ano', { encoding: 'utf8' });
+      const listener = netstat
+        .split('\n')
+        .find((line) => line.includes(':3100') && line.includes('LISTENING'));
+      const pid = listener?.trim().split(/\s+/).pop();
+      if (pid && Number(pid) > 0) {
+        execSync(`taskkill /PID ${pid} /T /F`, { stdio: 'ignore' });
+      }
+    } catch {
+      // nothing listening — already clean
+    }
   }
 }
 

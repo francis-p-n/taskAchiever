@@ -150,6 +150,29 @@ class QuestsRepository {
     }
   }
 
+  /// AI side-quest ideas; [focus] names the life area to lean toward.
+  /// Null when the backend is unreachable (the server itself falls back to
+  /// canned ideas when the AI is unconfigured, so null really means offline).
+  Future<List<({String title, int difficulty})>?> suggestQuests(
+      {String? focus}) async {
+    try {
+      final response = await _dio.post(
+        '/ai/suggest-quests',
+        data: {if (focus != null) 'focus': focus},
+        options: Options(receiveTimeout: const Duration(seconds: 30)),
+      );
+      return [
+        for (final item in (response.data['suggestions'] as List))
+          (
+            title: item['title'].toString(),
+            difficulty: (item['difficulty'] as num?)?.toInt() ?? 1,
+          ),
+      ];
+    } on DioException {
+      return null;
+    }
+  }
+
   /// Amends the (auto-generated) difficulty.
   Future<bool> setDifficulty(String id, int difficulty) async {
     try {

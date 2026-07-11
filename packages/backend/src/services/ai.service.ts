@@ -102,6 +102,100 @@ export async function analyzeMealPhoto(
   }
 }
 
+const SUGGESTIONS_SCHEMA = {
+  type: 'object' as const,
+  properties: {
+    suggestions: {
+      type: 'array' as const,
+      items: {
+        type: 'object' as const,
+        properties: {
+          title: {
+            type: 'string' as const,
+            description: 'Short, concrete side quest doable today, under 60 characters',
+          },
+          difficulty: { type: 'integer' as const, minimum: 1, maximum: 5 },
+        },
+        required: ['title', 'difficulty'],
+        additionalProperties: false,
+      },
+      description: 'Exactly 5 side-quest ideas',
+    },
+  },
+  required: ['suggestions'],
+  additionalProperties: false,
+};
+
+export interface QuestSuggestion {
+  title: string;
+  difficulty: number;
+}
+
+/** Evergreen ideas so the button always produces something offline. */
+const FALLBACK_SUGGESTIONS: QuestSuggestion[] = [
+  { title: 'Take a 20-minute walk outside', difficulty: 1 },
+  { title: 'Message a friend you miss', difficulty: 1 },
+  { title: 'Clear your desk for 10 minutes', difficulty: 1 },
+  { title: 'Cook one meal from scratch', difficulty: 2 },
+  { title: 'Read 10 pages of any book', difficulty: 1 },
+];
+
+/** Suggests 5 fresh side quests informed by what the player has been doing
+ *  and (optionally) their least-developed life area. Never throws. */
+export async function suggestQuests(
+  recentTitles: string[],
+  focusArea?: string
+): Promise<{ suggestions: QuestSuggestion[]; source: 'ai' | 'fallback' }> {
+  if (!aiConfigured()) {
+    return { suggestions: FALLBACK_SUGGESTIONS, source: 'fallback' };
+  }
+
+  try {
+    const response = await getClient().messages.create({
+      model: 'claude-opus-4-8',
+      max_tokens: 1024,
+      output_config: { format: { type: 'json_schema', schema: SUGGESTIONS_SCHEMA } },
+      messages: [
+        {
+          role: 'user',
+          content:
+            `You suggest side quests for a gamified personal life planner. ` +
+            `Side quests are small, concrete, feel-good tasks a person can ` +
+            `finish today (under 60 characters each).\n` +
+            (recentTitles.length > 0
+              ? `They have recently been working on: ${recentTitles.slice(0, 20).join('; ')}.\n`
+              : '') +
+            (focusArea
+              ? `Their least-developed life area is "${focusArea}" — bias 2-3 ideas toward it.\n`
+              : '') +
+            `Suggest 5 fresh ideas that are NOT rephrasings of the recent ones. ` +
+            `Rate each 1 (trivial) to 5 (ambitious); most should be 1-2.`,
+        },
+      ],
+    });
+
+    if (response.stop_reason === 'refusal' || response.content.length === 0) {
+      return { suggestions: FALLBACK_SUGGESTIONS, source: 'fallback' };
+    }
+    const text = response.content.find((b) => b.type === 'text');
+    const parsed = text
+      ? (JSON.parse(text.text) as { suggestions: QuestSuggestion[] })
+      : null;
+    if (!parsed?.suggestions?.length) {
+      return { suggestions: FALLBACK_SUGGESTIONS, source: 'fallback' };
+    }
+    return {
+      suggestions: parsed.suggestions.slice(0, 5).map((s) => ({
+        title: String(s.title).slice(0, 120),
+        difficulty: Math.min(5, Math.max(1, Math.round(s.difficulty || 1))),
+      })),
+      source: 'ai',
+    };
+  } catch {
+    return { suggestions: FALLBACK_SUGGESTIONS, source: 'fallback' };
+  }
+}
+
 const DIFFICULTY_SCHEMA = {
   type: 'object' as const,
   properties: {

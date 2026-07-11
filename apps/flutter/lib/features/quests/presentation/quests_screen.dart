@@ -5,6 +5,7 @@ import 'package:life_os/core/data/integrations_repository.dart';
 import 'package:life_os/core/flows/integration_flows.dart';
 import 'package:life_os/core/providers.dart';
 import 'package:life_os/core/theme.dart';
+import 'package:life_os/features/player/application/player_notifier.dart';
 import 'package:life_os/features/player/domain/player.dart';
 import 'package:life_os/features/quests/application/quest_actions.dart';
 import 'package:life_os/features/quests/application/quests_notifier.dart';
@@ -149,16 +150,31 @@ class QuestsScreen extends ConsumerWidget {
             NotionSectionTitle(
               icon: Icons.extension_outlined,
               title: 'Side Quests',
-              trailing: (todoist?.connected ?? false)
-                  ? TextButton.icon(
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => showDialog(
+                      context: context,
+                      builder: (_) => const _SuggestionIdeasDialog(),
+                    ),
+                    style: TextButton.styleFrom(
+                        foregroundColor: NotionColors.textMuted),
+                    icon: const Icon(Icons.auto_awesome_outlined, size: 14),
+                    label:
+                        const Text('Ideas', style: TextStyle(fontSize: 12)),
+                  ),
+                  if (todoist?.connected ?? false)
+                    TextButton.icon(
                       onPressed: () => syncTodoistFlow(context, ref),
                       style: TextButton.styleFrom(
                           foregroundColor: NotionColors.textMuted),
                       icon: const Icon(Icons.sync, size: 14),
                       label: const Text('Sync Todoist',
                           style: TextStyle(fontSize: 12)),
-                    )
-                  : null,
+                    ),
+                ],
+              ),
             ),
             if (side.isNotEmpty) ...[
               GridView.builder(
@@ -370,6 +386,171 @@ class QuestsScreen extends ConsumerWidget {
             content: Text('Backend offline — quest not saved.')),
       );
     }
+  }
+}
+
+/// AI-suggested side quests, biased toward the player's weakest radar area.
+/// Each idea lands as a real side quest with one tap.
+class _SuggestionIdeasDialog extends ConsumerStatefulWidget {
+  const _SuggestionIdeasDialog();
+
+  @override
+  ConsumerState<_SuggestionIdeasDialog> createState() =>
+      _SuggestionIdeasDialogState();
+}
+
+class _SuggestionIdeasDialogState
+    extends ConsumerState<_SuggestionIdeasDialog> {
+  List<({String title, int difficulty})>? _ideas;
+  bool _failed = false;
+  final _added = <String>{};
+
+  @override
+  void initState() {
+    super.initState();
+    _fetch();
+  }
+
+  Future<void> _fetch() async {
+    setState(() {
+      _ideas = null;
+      _failed = false;
+    });
+    final player = ref.read(playerProvider);
+    // Weakest radar area → the ideas pull the pentagon back into balance.
+    final focus = Area.values.reduce(
+        (a, b) => player.areaOf(a) <= player.areaOf(b) ? a : b);
+    final ideas = await ref
+        .read(questsRepositoryProvider)
+        .suggestQuests(focus: focus.label);
+    if (!mounted) return;
+    setState(() {
+      _ideas = ideas;
+      _failed = ideas == null;
+    });
+  }
+
+  Future<void> _add(({String title, int difficulty}) idea) async {
+    final created = await ref.read(questsRepositoryProvider).createQuest(
+          title: idea.title,
+          category: 'side',
+          difficulty: idea.difficulty,
+        );
+    if (!mounted) return;
+    if (created != null) {
+      setState(() => _added.add(idea.title));
+      ref.invalidate(remoteQuestsProvider);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Backend offline — quest not saved.')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: NotionColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: NotionColors.border),
+      ),
+      title: Row(
+        children: [
+          const Expanded(
+            child:
+                Text('Side quest ideas', style: TextStyle(fontSize: 16)),
+          ),
+          IconButton(
+            tooltip: 'Fresh ideas',
+            iconSize: 16,
+            color: NotionColors.textMuted,
+            onPressed: _ideas == null ? null : _fetch,
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
+      ),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 400),
+        child: _failed
+            ? const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Text(
+                  'Backend offline — try again later.',
+                  style: TextStyle(
+                      fontSize: 12, color: NotionColors.textMuted),
+                ),
+              )
+            : _ideas == null
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        SizedBox(width: 10),
+                        Text('Thinking up quests…',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: NotionColors.textMuted)),
+                      ],
+                    ),
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final idea in _ideas!)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(idea.title,
+                                        style:
+                                            const TextStyle(fontSize: 13)),
+                                    Text('+${idea.difficulty * 10} XP',
+                                        style: NotionType.mono(
+                                            size: 10.5,
+                                            color: NotionColors.green)),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              if (_added.contains(idea.title))
+                                const Icon(Icons.check,
+                                    size: 16, color: NotionColors.green)
+                              else
+                                SizedBox(
+                                  height: 26,
+                                  child: OutlinedButton(
+                                    onPressed: () => _add(idea),
+                                    child: const Text('Add',
+                                        style: TextStyle(fontSize: 11)),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close',
+              style:
+                  TextStyle(color: NotionColors.textMuted, fontSize: 13)),
+        ),
+      ],
+    );
   }
 }
 
