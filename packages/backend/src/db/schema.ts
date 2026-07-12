@@ -112,6 +112,13 @@ export const healthMetrics = pgTable('health_metrics', {
   heartRateMin: integer('heart_rate_min'),
   heartRateMax: integer('heart_rate_max'),
   sleepScore: integer('sleep_score'),
+  sleepMinutes: integer('sleep_minutes'), // last night's sleep, from Health Connect
+  hrvRmssd: integer('hrv_rmssd'), // recovery/stress proxy (higher = calmer)
+  restingHeartRate: integer('resting_heart_rate'),
+  spo2: integer('spo2'), // blood oxygen, average %
+  distanceMeters: integer('distance_meters'),
+  sleepDeepMinutes: integer('sleep_deep_minutes'),
+  sleepRemMinutes: integer('sleep_rem_minutes'),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (t) => ({
   userDateIdx: uniqueIndex('health_metrics_user_date_idx').on(t.userId, t.date),

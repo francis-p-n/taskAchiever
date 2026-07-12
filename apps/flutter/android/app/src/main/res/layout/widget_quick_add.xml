@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- lifeOS quick-add widget: two tap targets that deep-link straight into
+     the add-expense / log-meal sheets. RemoteViews can't host text input,
+     so capture happens in-app after one tap. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:orientation="horizontal"
+    android:padding="10dp"
+    android:gravity="center">
+
+    <TextView
+        android:id="@+id/widget_add_expense"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:background="@drawable/widget_button_bg"
+        android:gravity="center"
+        android:text="＄  Expense"
+        android:textColor="#D4D4D4"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <Space
+        android:layout_width="8dp"
+        android:layout_height="match_parent" />
+
+    <TextView
+        android:id="@+id/widget_add_meal"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:background="@drawable/widget_button_bg"
+        android:gravity="center"
+        android:text="🍽  Meal"
+        android:textColor="#D4D4D4"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+</LinearLayout>

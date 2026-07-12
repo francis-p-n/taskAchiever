@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_os/core/flows/integration_flows.dart';
 import 'package:life_os/core/theme.dart';
+import 'package:life_os/features/spending/presentation/add_expense_sheet.dart';
 import 'package:life_os/features/spending/data/spending_repository.dart';
 import 'package:life_os/shared/widgets/metric_callout.dart';
 import 'package:life_os/shared/widgets/notion_card.dart';
@@ -27,6 +28,11 @@ class SpendingScreen extends ConsumerWidget {
         title: const Text('Gold'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.add, size: 20),
+            tooltip: 'Add expense',
+            onPressed: () => showAddExpenseSheet(context, ref),
+          ),
+          IconButton(
             icon: const Icon(Icons.upload_file_outlined, size: 18),
             tooltip: 'Import Google Wallet / bank CSV',
             onPressed: () => importWalletCsvFlow(context, ref),
@@ -34,14 +40,15 @@ class SpendingScreen extends ConsumerWidget {
         ],
       ),
       body: spendingData.when(
-        data: (transactions) => _buildContent(context, transactions),
+        data: (transactions) => _buildContent(context, ref, transactions),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error: $err')),
       ),
     );
   }
 
-  Widget _buildContent(BuildContext context, List<dynamic> transactions) {
+  Widget _buildContent(
+      BuildContext context, WidgetRef ref, List<dynamic> transactions) {
     return PageBody(
       children: [
         const MetricRow(
@@ -96,7 +103,7 @@ class SpendingScreen extends ConsumerWidget {
           icon: Icons.receipt_long_outlined,
           title: 'Recent Transactions',
           trailing: TextButton.icon(
-            onPressed: () {},
+            onPressed: () => showAddExpenseSheet(context, ref),
             style: TextButton.styleFrom(
                 foregroundColor: NotionColors.textMuted),
             icon: const Icon(Icons.add, size: 14),

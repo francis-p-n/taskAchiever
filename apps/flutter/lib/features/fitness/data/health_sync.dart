@@ -20,6 +20,18 @@ class HealthSyncService {
     HealthDataType.ACTIVE_ENERGY_BURNED,
     HealthDataType.HEART_RATE,
     HealthDataType.WORKOUT,
+    HealthDataType.SLEEP_SESSION,
+    HealthDataType.HEART_RATE_VARIABILITY_RMSSD,
+    HealthDataType.RESTING_HEART_RATE,
+    HealthDataType.BLOOD_OXYGEN,
+    HealthDataType.DISTANCE_DELTA,
+  ];
+
+  /// Sleep stages live in the overnight window, not today's.
+  static const _sleepTypes = [
+    HealthDataType.SLEEP_SESSION,
+    HealthDataType.SLEEP_DEEP,
+    HealthDataType.SLEEP_REM,
   ];
 
   /// Returns a user-displayable result message.
@@ -52,9 +64,41 @@ class HealthSyncService {
       );
 
       var calories = 0.0;
+      var distanceMeters = 0.0;
       int? hrMin;
       int? hrMax;
+      int? restingHr;
       var workouts = 0;
+      final hrvSamples = <double>[];
+      final spo2Samples = <double>[];
+
+      // Last night's sleep (sessions + stages) starts the previous evening,
+      // outside the midnight-to-now window used for daily totals.
+      var sleepMinutes = 0;
+      var deepMinutes = 0;
+      var remMinutes = 0;
+      try {
+        final sleepPoints = await health.getHealthDataFromTypes(
+          types: _sleepTypes,
+          startTime: midnight.subtract(const Duration(hours: 10)),
+          endTime: now,
+        );
+        for (final point in sleepPoints) {
+          final minutes = point.dateTo.difference(point.dateFrom).inMinutes;
+          switch (point.type) {
+            case HealthDataType.SLEEP_SESSION:
+              sleepMinutes += minutes;
+            case HealthDataType.SLEEP_DEEP:
+              deepMinutes += minutes;
+            case HealthDataType.SLEEP_REM:
+              remMinutes += minutes;
+            default:
+              break;
+          }
+        }
+      } catch (_) {
+        // Sleep permission denied or unsupported — the energy score copes.
+      }
 
       for (final point in points) {
         final value = point.value;
@@ -68,6 +112,22 @@ class HealthSyncService {
               final bpm = value.numericValue.round();
               hrMin = hrMin == null || bpm < hrMin ? bpm : hrMin;
               hrMax = hrMax == null || bpm > hrMax ? bpm : hrMax;
+            }
+          case HealthDataType.HEART_RATE_VARIABILITY_RMSSD:
+            if (value is NumericHealthValue) {
+              hrvSamples.add(value.numericValue.toDouble());
+            }
+          case HealthDataType.RESTING_HEART_RATE:
+            if (value is NumericHealthValue) {
+              restingHr = value.numericValue.round();
+            }
+          case HealthDataType.BLOOD_OXYGEN:
+            if (value is NumericHealthValue) {
+              spo2Samples.add(value.numericValue.toDouble());
+            }
+          case HealthDataType.DISTANCE_DELTA:
+            if (value is NumericHealthValue) {
+              distanceMeters += value.numericValue.toDouble();
             }
           case HealthDataType.WORKOUT:
             if (value is WorkoutHealthValue) {
@@ -88,15 +148,34 @@ class HealthSyncService {
         }
       }
 
+      final hrv = hrvSamples.isEmpty
+          ? null
+          : (hrvSamples.reduce((a, b) => a + b) / hrvSamples.length).round();
+      final spo2 = spo2Samples.isEmpty
+          ? null
+          : (spo2Samples.reduce((a, b) => a + b) / spo2Samples.length)
+              .round();
+
       final ok = await _repository.pushDailyTotals(
         steps: steps,
         caloriesBurned: calories.round(),
         heartRateMin: hrMin,
         heartRateMax: hrMax,
+        sleepMinutes: sleepMinutes > 0 ? sleepMinutes : null,
+        hrvRmssd: hrv,
+        restingHeartRate: restingHr,
+        spo2: spo2,
+        distanceMeters: distanceMeters > 0 ? distanceMeters.round() : null,
+        sleepDeepMinutes: deepMinutes > 0 ? deepMinutes : null,
+        sleepRemMinutes: remMinutes > 0 ? remMinutes : null,
       );
       if (!ok) return 'Backend offline — health data not saved.';
 
       return 'Health sync complete: $steps steps, ${calories.round()} kcal'
+          '${sleepMinutes > 0 ? ', ${(sleepMinutes / 60).toStringAsFixed(1)}h sleep' : ''}'
+          '${hrv != null ? ', HRV $hrv' : ''}'
+          '${restingHr != null ? ', RHR $restingHr' : ''}'
+          '${spo2 != null ? ', SpO₂ $spo2%' : ''}'
           '${workouts > 0 ? ', $workouts workout(s)' : ''}.';
     } catch (err) {
       return 'Health sync failed: $err';
