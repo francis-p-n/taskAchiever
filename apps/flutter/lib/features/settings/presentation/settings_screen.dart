@@ -95,10 +95,10 @@ class SettingsScreen extends ConsumerWidget {
           _UtilityIntegrationRow(
             icon: Icons.cloud_outlined,
             name: 'Backend',
-            description: ref.watch(backendUrlProvider) +
+            description: '${ref.watch(backendUrlProvider)}'
                 '\nOn a phone, point this at your PC '
-                    '(http://<pc-ip>:3000/api) or a hosted backend — the '
-                    'same account syncs across every device.',
+                '(http://<pc-ip>:3000/api) or a hosted backend — the '
+                'same account syncs across every device.',
             actionLabel: 'Change',
             onAction: () async {
               final url = await showConnectDialog(

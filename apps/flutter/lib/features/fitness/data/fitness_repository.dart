@@ -108,10 +108,10 @@ class FitnessRepository {
   }) async {
     try {
       await _dio.post('/fitness', data: {
-        if (steps != null) 'steps': steps,
-        if (caloriesBurned != null) 'caloriesBurned': caloriesBurned,
-        if (heartRateMin != null) 'heartRateMin': heartRateMin,
-        if (heartRateMax != null) 'heartRateMax': heartRateMax,
+        'steps': ?steps,
+        'caloriesBurned': ?caloriesBurned,
+        'heartRateMin': ?heartRateMin,
+        'heartRateMax': ?heartRateMax,
       });
       return true;
     } on DioException {
@@ -130,10 +130,10 @@ class FitnessRepository {
     try {
       await _dio.post('/fitness', data: {
         'replace': true,
-        if (steps != null) 'steps': steps,
-        if (caloriesBurned != null) 'caloriesBurned': caloriesBurned,
-        if (heartRateMin != null) 'heartRateMin': heartRateMin,
-        if (heartRateMax != null) 'heartRateMax': heartRateMax,
+        'steps': ?steps,
+        'caloriesBurned': ?caloriesBurned,
+        'heartRateMin': ?heartRateMin,
+        'heartRateMax': ?heartRateMax,
       });
       return true;
     } on DioException {
@@ -158,11 +158,11 @@ class FitnessRepository {
         'name': name,
         'startTime': startTime.toIso8601String(),
         'source': source,
-        if (externalId != null) 'externalId': externalId,
-        if (sportType != null) 'sportType': sportType,
-        if (durationSeconds != null) 'durationSeconds': durationSeconds,
-        if (caloriesBurned != null) 'caloriesBurned': caloriesBurned,
-        if (avgHeartRate != null) 'avgHeartRate': avgHeartRate,
+        'externalId': ?externalId,
+        'sportType': ?sportType,
+        'durationSeconds': ?durationSeconds,
+        'caloriesBurned': ?caloriesBurned,
+        'avgHeartRate': ?avgHeartRate,
       });
       final data = response.data;
       if (data is Map<String, dynamic>) {

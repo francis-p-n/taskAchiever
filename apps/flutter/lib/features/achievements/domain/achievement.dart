@@ -3,6 +3,20 @@ import 'package:flutter/material.dart';
 enum AchievementCategory { quests, fitness, food, spending }
 
 extension AchievementCategoryX on AchievementCategory {
+  /// Matches the nav destination iconography for each feature area.
+  IconData get icon {
+    switch (this) {
+      case AchievementCategory.quests:
+        return Icons.list_alt_outlined;
+      case AchievementCategory.fitness:
+        return Icons.fitness_center_outlined;
+      case AchievementCategory.food:
+        return Icons.restaurant_menu_outlined;
+      case AchievementCategory.spending:
+        return Icons.account_balance_wallet_outlined;
+    }
+  }
+
   String get label {
     switch (this) {
       case AchievementCategory.quests:

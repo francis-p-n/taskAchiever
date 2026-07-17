@@ -179,7 +179,7 @@ class ScheduleScreen extends ConsumerWidget {
                 ),
               ),
               // Repository already swallows network errors; never crash here.
-              error: (_, __) => const _EmptySchedule(),
+              error: (_, _) => const _EmptySchedule(),
             ),
           ),
           const SizedBox(height: 24),

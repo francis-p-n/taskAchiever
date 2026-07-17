@@ -26,7 +26,7 @@ class AchievementsScreen extends ConsumerWidget {
       ),
       body: achievements.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => const _Unavailable(),
+        error: (_, _) => const _Unavailable(),
         data: (list) {
           if (list == null) return const _Unavailable();
           final unlockedCount = list.where((a) => a.unlocked).length;
@@ -84,7 +84,7 @@ class _CategorySection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           NotionSectionTitle(
-            icon: Icons.folder_outlined,
+            icon: category.icon,
             title: category.label,
           ),
           for (final achievement in achievements) ...[
@@ -96,6 +96,13 @@ class _CategorySection extends StatelessWidget {
     );
   }
 }
+
+const _months = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+String _formatDate(DateTime d) => '${d.day} ${_months[d.month - 1]} ${d.year}';
 
 class _AchievementTile extends StatelessWidget {
   final Achievement achievement;
@@ -146,7 +153,7 @@ class _AchievementTile extends StatelessWidget {
             ),
             if (achievement.unlocked && achievement.unlockedAt != null)
               Text(
-                '${achievement.unlockedAt!.toLocal()}'.split(' ').first,
+                _formatDate(achievement.unlockedAt!.toLocal()),
                 style: NotionType.mono(size: 10, color: NotionColors.textFaint),
               ),
           ],

@@ -85,7 +85,7 @@ class QuestsRepository {
         'category': category,
         'difficulty': difficulty,
         'dueDate': dueDate?.toIso8601String(),
-        if (recurrence != null) 'recurrence': recurrence,
+        'recurrence': ?recurrence,
       });
       return QuestDto.fromJson(response.data as Map<String, dynamic>);
     } on DioException {
@@ -163,7 +163,7 @@ class QuestsRepository {
     try {
       final response = await _dio.post(
         '/ai/suggest-quests',
-        data: {if (focus != null) 'focus': focus},
+        data: {'focus': ?focus},
         options: Options(receiveTimeout: const Duration(seconds: 30)),
       );
       return [

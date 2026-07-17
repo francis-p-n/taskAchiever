@@ -102,9 +102,9 @@ class FoodRepository {
       final response = await _dio.post('/food', data: {
         'mealType': mealType,
         'calories': calories,
-        if (protein != null) 'protein': protein,
-        if (carbs != null) 'carbs': carbs,
-        if (fats != null) 'fats': fats,
+        'protein': ?protein,
+        'carbs': ?carbs,
+        'fats': ?fats,
       });
       final data = response.data;
       if (data is Map<String, dynamic>) {

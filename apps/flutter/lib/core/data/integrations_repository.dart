@@ -78,7 +78,7 @@ class IntegrationsRepository {
       _action(() => _dio.post('/integrations/todoist',
           data: {
             'apiKey': apiKey,
-            if (projectName != null) 'projectName': projectName,
+            'projectName': ?projectName,
           },
           options: _longCall));
 
