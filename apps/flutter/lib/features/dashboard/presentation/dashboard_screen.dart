@@ -4,12 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:life_os/core/theme.dart';
 import 'package:life_os/features/dashboard/data/summary_repository.dart';
-import 'package:life_os/features/fitness/data/fitness_repository.dart';
 import 'package:life_os/features/food/data/food_repository.dart';
-import 'package:life_os/features/food/presentation/food_screen.dart';
 import 'package:life_os/features/player/application/player_notifier.dart';
 import 'package:life_os/features/spending/data/spending_repository.dart';
-import 'package:life_os/features/spending/presentation/add_expense_sheet.dart';
 import 'package:life_os/features/player/data/stats_repository.dart';
 import 'package:life_os/features/player/domain/player.dart';
 import 'package:life_os/features/quests/application/quest_actions.dart';
@@ -46,30 +43,32 @@ class DashboardScreen extends ConsumerWidget {
                 child:
                     _GreetingHeader(player: player, openQuests: openQuests)),
             const SizedBox(height: 20),
+            Reveal(order: 1, child: _EnergyRow(player: player)),
+            const SizedBox(height: 16),
             if (isWide)
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SizedBox(
                       width: 260,
-                      child: Reveal(order: 1, child: _LeftColumn(player: player))),
+                      child: Reveal(order: 2, child: _LeftColumn(player: player))),
                   const SizedBox(width: 16),
                   Expanded(
                       child:
-                          Reveal(order: 2, child: _CenterColumn(player: player))),
+                          Reveal(order: 3, child: _CenterColumn(player: player))),
                   const SizedBox(width: 16),
                   SizedBox(
                       width: 300,
                       child:
-                          Reveal(order: 3, child: _RightColumn(player: player))),
+                          Reveal(order: 4, child: _RightColumn(player: player))),
                 ],
               )
             else ...[
-              Reveal(order: 1, child: _LeftColumn(player: player)),
+              Reveal(order: 2, child: _LeftColumn(player: player)),
               const SizedBox(height: 16),
-              Reveal(order: 2, child: _CenterColumn(player: player)),
+              Reveal(order: 3, child: _CenterColumn(player: player)),
               const SizedBox(height: 16),
-              Reveal(order: 3, child: _RightColumn(player: player)),
+              Reveal(order: 4, child: _RightColumn(player: player)),
             ],
           ],
         ),
@@ -122,26 +121,28 @@ class _GreetingHeader extends ConsumerWidget {
           runSpacing: 8,
           children: [
             _quickAction(context, Icons.add, 'New quest', '/quests'),
+            _quickAction(
+                context, Icons.restaurant_outlined, 'Log a meal', '/food'),
+            _quickAction(context, Icons.fitness_center_outlined,
+                'Log a workout', '/fitness'),
             SizedBox(
               height: 30,
               child: OutlinedButton.icon(
-                onPressed: () => showAddExpenseSheet(context, ref),
-                icon: const Icon(Icons.payments_outlined, size: 14),
-                label: const Text('Add expense',
+                onPressed: () {
+                  ref.read(playerProvider.notifier).resetEnergies();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('All energy bars refilled.'),
+                      duration: Duration(milliseconds: 1200),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.battery_charging_full_outlined,
+                    size: 14),
+                label: const Text('Refill energy',
                     style: TextStyle(fontSize: 12)),
               ),
             ),
-            SizedBox(
-              height: 30,
-              child: OutlinedButton.icon(
-                onPressed: () => openLogMealSheet(context, ref),
-                icon: const Icon(Icons.restaurant_outlined, size: 14),
-                label:
-                    const Text('Log a meal', style: TextStyle(fontSize: 12)),
-              ),
-            ),
-            _quickAction(context, Icons.fitness_center_outlined,
-                'Log a workout', '/fitness'),
           ],
         ),
       ],
@@ -157,6 +158,77 @@ class _GreetingHeader extends ConsumerWidget {
         icon: Icon(icon, size: 14),
         label: Text(label, style: const TextStyle(fontSize: 12)),
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Top row: the four energy callouts
+// ---------------------------------------------------------------------------
+
+class _EnergyRow extends ConsumerWidget {
+  final Player player;
+
+  const _EnergyRow({required this.player});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isWide = MediaQuery.of(context).size.width > 700;
+
+    final cards = Energy.values.map((e) {
+      return NotionCard(
+        color: e.bgColor,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(e.icon, size: 14, color: e.color),
+                const SizedBox(width: 6),
+                Text(
+                  e.label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: e.color,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            BlockBar(value: player.energyOf(e), max: maxEnergy, color: e.color),
+            const SizedBox(height: 6),
+            Text(
+              e.caption,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11,
+                color: NotionColors.textMuted,
+              ),
+            ),
+          ],
+        ),
+      );
+    }).toList();
+
+    if (isWide) {
+      return Row(
+        children: [
+          for (var i = 0; i < cards.length; i++) ...[
+            if (i > 0) const SizedBox(width: 12),
+            Expanded(child: cards[i]),
+          ],
+        ],
+      );
+    }
+    return Column(
+      children: [
+        for (var i = 0; i < cards.length; i++) ...[
+          if (i > 0) const SizedBox(height: 8),
+          cards[i],
+        ],
+      ],
     );
   }
 }
@@ -206,7 +278,6 @@ class _LeftColumn extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 12),
-        const _BodyEnergyCard(),
         const NotionSectionTitle(icon: Icons.event_outlined, title: 'Up Next'),
         const _UpNext(),
         const SizedBox(height: 12),
@@ -215,73 +286,6 @@ class _LeftColumn extends ConsumerWidget {
         const _MealsGlanceCard(),
         const SizedBox(height: 8),
         const _SpendGlanceCard(),
-      ],
-    );
-  }
-}
-
-/// The one real energy meter: computed server-side from watch data (sleep,
-/// HRV/resting-HR recovery vs a 14-day personal baseline, movement).
-/// Renders nothing until Health Connect data exists — no invented numbers.
-class _BodyEnergyCard extends ConsumerWidget {
-  const _BodyEnergyCard();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final energy = ref.watch(bodyEnergyProvider).valueOrNull;
-    final score = energy?.score;
-    if (energy == null || score == null) return const SizedBox.shrink();
-
-    final details = <String>[
-      if (energy.sleepMinutes != null)
-        '${(energy.sleepMinutes! / 60).toStringAsFixed(1)}h sleep',
-      if (energy.recoveryBasis == 'hrv') 'HRV recovery',
-      if (energy.recoveryBasis == 'restingHr') 'resting HR',
-      if (energy.steps != null) '${energy.steps} steps',
-    ];
-    final color = score >= 7
-        ? NotionColors.green
-        : score >= 4
-            ? NotionColors.yellow
-            : NotionColors.red;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        NotionCard(
-          onTap: () => context.go('/fitness'),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.bolt_outlined, size: 14, color: color),
-                  const SizedBox(width: 6),
-                  const Text('Body Energy',
-                      style: TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w600)),
-                  const Spacer(),
-                  Text('$score/10',
-                      style: NotionType.mono(
-                          size: 12, weight: FontWeight.w700, color: color)),
-                ],
-              ),
-              const SizedBox(height: 8),
-              BlockBar(value: score, max: 10, color: color, showLabel: false),
-              if (details.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(
-                  details.join(' · '),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 11, color: NotionColors.textMuted),
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
       ],
     );
   }

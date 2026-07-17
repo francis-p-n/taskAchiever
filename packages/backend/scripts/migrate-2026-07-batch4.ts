@@ -16,11 +16,6 @@ const pool = new Pool({
 const statements = [
   `ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS sleep_minutes integer`,
   `ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS hrv_rmssd integer`,
-  `ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS resting_heart_rate integer`,
-  `ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS spo2 integer`,
-  `ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS distance_meters integer`,
-  `ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS sleep_deep_minutes integer`,
-  `ALTER TABLE health_metrics ADD COLUMN IF NOT EXISTS sleep_rem_minutes integer`,
 ];
 
 async function main() {

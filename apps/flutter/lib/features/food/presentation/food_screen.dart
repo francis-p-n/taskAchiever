@@ -138,7 +138,7 @@ class FoodScreen extends ConsumerWidget {
           icon: Icons.lunch_dining_outlined,
           title: 'Meals Today',
           trailing: TextButton.icon(
-            onPressed: () => openLogMealSheet(context, ref),
+            onPressed: () => _openLogMealSheet(context, ref),
             style: TextButton.styleFrom(
                 foregroundColor: NotionColors.textMuted),
             icon: const Icon(Icons.add, size: 14),
@@ -192,40 +192,36 @@ class FoodScreen extends ConsumerWidget {
     );
   }
 
-}
-
-/// Opens the log-meal sheet and persists the result. Public so the
-/// dashboard quick action and the home-screen widget deep link can use the
-/// exact same flow as the Food screen.
-Future<void> openLogMealSheet(BuildContext context, WidgetRef ref) async {
-  final draft = await showModalBottomSheet<_MealDraft>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: NotionColors.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
-      side: BorderSide(color: NotionColors.border),
-    ),
-    builder: (_) => const _LogMealSheet(),
-  );
-  if (draft == null) return;
-
-  final ok = await ref.read(foodRepositoryProvider).logMeal(
-        mealType: draft.mealType,
-        calories: draft.calories,
-        protein: draft.protein,
-        carbs: draft.carbs,
-        fats: draft.fats,
-      );
-  if (ok) ref.invalidate(todayFoodProvider);
-  if (context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(ok
-            ? '${draft.mealType} logged (${draft.calories} kcal).'
-            : 'Could not log meal — backend offline.'),
+  Future<void> _openLogMealSheet(BuildContext context, WidgetRef ref) async {
+    final draft = await showModalBottomSheet<_MealDraft>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: NotionColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
+        side: BorderSide(color: NotionColors.border),
       ),
+      builder: (_) => const _LogMealSheet(),
     );
+    if (draft == null) return;
+
+    final ok = await ref.read(foodRepositoryProvider).logMeal(
+          mealType: draft.mealType,
+          calories: draft.calories,
+          protein: draft.protein,
+          carbs: draft.carbs,
+          fats: draft.fats,
+        );
+    if (ok) ref.invalidate(todayFoodProvider);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ok
+              ? '${draft.mealType} logged (${draft.calories} kcal).'
+              : 'Could not log meal — backend offline.'),
+        ),
+      );
+    }
   }
 }
 

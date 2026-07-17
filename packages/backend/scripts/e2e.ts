@@ -204,24 +204,6 @@ async function main() {
     check('push test no-ops without FIREBASE_SERVICE_ACCOUNT',
       pushTest.status === 200 && pushBody.sent === 0);
 
-    // --- health stats + Body Energy -------------------------------------------
-    const pushHealth = await fetch(`${BASE}/api/fitness`, {
-      method: 'POST', headers: auth,
-      body: JSON.stringify({
-        replace: true, steps: 6500, caloriesBurned: 420, heartRateMin: 52,
-        sleepMinutes: 430, hrvRmssd: 55, restingHeartRate: 58, spo2: 97,
-        distanceMeters: 4800, sleepDeepMinutes: 80, sleepRemMinutes: 70,
-      }),
-    });
-    check('full health stats accepted', pushHealth.status === 200);
-
-    const energy = (await (await fetch(`${BASE}/api/fitness/energy`, { headers: auth })).json()) as any;
-    check('body energy scores from sleep + activity',
-      typeof energy.score === 'number' && energy.score >= 1 && energy.score <= 10 &&
-      energy.components.sleep.minutes === 430 &&
-      energy.components.activity.steps >= 6500,
-      JSON.stringify(energy).slice(0, 200));
-
     // --- player profile sync (last write wins) --------------------------------
     const newer = new Date().toISOString();
     const older = new Date(Date.now() - 60_000).toISOString();
