@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/auth';
 import { db } from '../db';
 import { transactions } from '../db/schema';
 import { eq, desc, and, gte, sql } from 'drizzle-orm';
+import { AchievementService } from '../services/achievements.service';
 
 /** Minimal RFC-4180 CSV parse: quoted fields, escaped quotes, CRLF. */
 function parseCsv(text: string): string[][] {
@@ -186,7 +187,8 @@ export default async function spendingRoutes(fastify: FastifyInstance) {
       else skipped++;
     }
 
-    return reply.send({ imported, skipped, failed, total: rows.length - 1 });
+    const newlyUnlocked = imported > 0 ? await AchievementService.evaluate(user.id) : [];
+    return reply.send({ imported, skipped, failed, total: rows.length - 1, newlyUnlocked });
   });
 
   fastify.post('/api/spending', async (request, reply) => {
@@ -201,6 +203,7 @@ export default async function spendingRoutes(fastify: FastifyInstance) {
       transactionDate: new Date(data.transactionDate || new Date()),
     }).returning();
 
-    return reply.status(201).send(transaction);
+    const newlyUnlocked = await AchievementService.evaluate(user.id);
+    return reply.status(201).send({ ...transaction, newlyUnlocked });
   });
 }

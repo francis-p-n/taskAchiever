@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:life_os/core/theme.dart';
+import 'package:life_os/features/achievements/application/achievement_unlock_bus.dart';
+import 'package:life_os/features/achievements/presentation/achievement_toast.dart';
 import 'package:life_os/features/player/application/player_notifier.dart';
 
 /// Barely-there color atmosphere behind every screen: a green breath at the
@@ -50,13 +52,39 @@ class _Atmosphere extends StatelessWidget {
   }
 }
 
-class MainLayout extends ConsumerWidget {
+class MainLayout extends ConsumerStatefulWidget {
   final Widget child;
 
   const MainLayout({super.key, required this.child});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MainLayout> createState() => _MainLayoutState();
+}
+
+class _MainLayoutState extends ConsumerState<MainLayout> {
+  @override
+  void initState() {
+    super.initState();
+    AchievementUnlockBus.unlocks.addListener(_onUnlocksChanged);
+  }
+
+  @override
+  void dispose() {
+    AchievementUnlockBus.unlocks.removeListener(_onUnlocksChanged);
+    super.dispose();
+  }
+
+  void _onUnlocksChanged() {
+    final pending = AchievementUnlockBus.unlocks.value;
+    if (pending.isEmpty || !mounted) return;
+    for (final achievement in pending) {
+      showAchievementToast(context, achievement);
+    }
+    AchievementUnlockBus.drain(pending.length);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // Determine layout based on screen width
     final isDesktop = MediaQuery.of(context).size.width > 800;
 
@@ -67,7 +95,7 @@ class MainLayout extends ConsumerWidget {
           children: [
             _buildSidebar(context, ref),
             const VerticalDivider(thickness: 1, width: 1),
-            Expanded(child: _Atmosphere(child: child)),
+            Expanded(child: _Atmosphere(child: widget.child)),
           ],
         ),
       );
@@ -75,7 +103,7 @@ class MainLayout extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: NotionColors.background,
-      body: _Atmosphere(child: child),
+      body: _Atmosphere(child: widget.child),
       bottomNavigationBar: _buildBottomNav(context),
     );
   }
@@ -176,6 +204,11 @@ class MainLayout extends ConsumerWidget {
           label: Text('Status'),
         ),
         NavigationRailDestination(
+          icon: Icon(Icons.emoji_events_outlined),
+          selectedIcon: Icon(Icons.emoji_events),
+          label: Text('Awards'),
+        ),
+        NavigationRailDestination(
           icon: Icon(Icons.settings_outlined),
           selectedIcon: Icon(Icons.settings),
           label: Text('Settings'),
@@ -231,6 +264,11 @@ class MainLayout extends ConsumerWidget {
           label: 'Status',
         ),
         BottomNavigationBarItem(
+          icon: Icon(Icons.emoji_events_outlined),
+          activeIcon: Icon(Icons.emoji_events),
+          label: 'Awards',
+        ),
+        BottomNavigationBarItem(
           icon: Icon(Icons.settings_outlined),
           activeIcon: Icon(Icons.settings),
           label: 'Config',
@@ -247,7 +285,8 @@ class MainLayout extends ConsumerWidget {
     if (location.startsWith('/schedule')) return 4;
     if (location.startsWith('/quests')) return 5;
     if (location.startsWith('/status')) return 6;
-    if (location.startsWith('/settings')) return 7;
+    if (location.startsWith('/achievements')) return 7;
+    if (location.startsWith('/settings')) return 8;
     return 0; // Default to Home
   }
 
@@ -275,6 +314,9 @@ class MainLayout extends ConsumerWidget {
         context.go('/status');
         break;
       case 7:
+        context.go('/achievements');
+        break;
+      case 8:
         context.go('/settings');
         break;
     }

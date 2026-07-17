@@ -4,6 +4,7 @@ import { db } from '../db';
 import { healthMetrics, activities } from '../db/schema';
 import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
 import { isSameWorkout } from '../lib/workouts';
+import { AchievementService } from '../services/achievements.service';
 
 /** How far around a new activity to look for duplicate candidates; the
  *  actual match is interval overlap (see isSameWorkout). */
@@ -34,13 +35,6 @@ export default async function fitnessRoutes(fastify: FastifyInstance) {
       heartRateMax: r.heartRateMax != null && (acc.heartRateMax == null || r.heartRateMax > acc.heartRateMax)
         ? r.heartRateMax : acc.heartRateMax,
       sleepScore: r.sleepScore ?? acc.sleepScore,
-      sleepMinutes: r.sleepMinutes ?? acc.sleepMinutes,
-      hrvRmssd: r.hrvRmssd ?? acc.hrvRmssd,
-      restingHeartRate: r.restingHeartRate ?? acc.restingHeartRate,
-      spo2: r.spo2 ?? acc.spo2,
-      distanceMeters: r.distanceMeters ?? acc.distanceMeters,
-      sleepDeepMinutes: r.sleepDeepMinutes ?? acc.sleepDeepMinutes,
-      sleepRemMinutes: r.sleepRemMinutes ?? acc.sleepRemMinutes,
     }));
 
     // Recent workouts (Strava + manual), newest first, for the Activity Log.
@@ -86,43 +80,25 @@ export default async function fitnessRoutes(fastify: FastifyInstance) {
       return sorted[Math.floor(sorted.length / 2)];
     };
 
-    // Sleep: 0-4 — duration against an 8h target (0-3), plus a restorative
-    // bonus (0-1) when deep+REM stages make up a healthy share (≥25%).
-    let sleep: number | null = null;
-    if (todayRow?.sleepMinutes) {
-      sleep = Math.min(3, (todayRow.sleepMinutes / 480) * 3);
-      const staged = (todayRow.sleepDeepMinutes ?? 0) + (todayRow.sleepRemMinutes ?? 0);
-      if (staged > 0) {
-        sleep += Math.min(1, staged / (todayRow.sleepMinutes * 0.25));
-      } else {
-        sleep = Math.min(4, (sleep / 3) * 4); // no stage data — rescale duration
-      }
-    }
+    // Sleep: 0-4 against an 8h target.
+    const sleep = todayRow?.sleepMinutes
+      ? Math.min(4, (todayRow.sleepMinutes / 480) * 4)
+      : null;
 
-    // Recovery: 0-3 vs personal baseline — HRV first (the physiological
-    // input to the watch's stress score), then resting HR, then day-min HR.
-    // Banded so day-to-day noise doesn't swing the score. A low SpO2 reading
-    // (<94%) knocks one point off: poor overnight oxygenation is a real
-    // recovery penalty.
+    // Recovery: 0-3 vs personal baseline. HRV higher = calmer; resting HR
+    // lower = calmer. Banded so day-to-day noise doesn't swing the score.
     const band = (ratio: number): number =>
       ratio >= 1 ? 3 : ratio >= 0.9 ? 2 : ratio >= 0.75 ? 1 : 0;
     let recovery: number | null = null;
-    let recoveryBasis: 'hrv' | 'restingHr' | 'minHr' | null = null;
+    let recoveryBasis: 'hrv' | 'restingHr' | null = null;
     const hrvBaseline = median(history.map((r) => r.hrvRmssd ?? 0).filter((v) => v > 0));
-    const restingBaseline = median(history.map((r) => r.restingHeartRate ?? 0).filter((v) => v > 0));
     const hrBaseline = median(history.map((r) => r.heartRateMin ?? 0).filter((v) => v > 0));
     if (todayRow?.hrvRmssd && hrvBaseline) {
       recovery = band(todayRow.hrvRmssd / hrvBaseline);
       recoveryBasis = 'hrv';
-    } else if (todayRow?.restingHeartRate && restingBaseline) {
-      recovery = band(restingBaseline / todayRow.restingHeartRate);
-      recoveryBasis = 'restingHr';
     } else if (todayRow?.heartRateMin && hrBaseline) {
       recovery = band(hrBaseline / todayRow.heartRateMin);
-      recoveryBasis = 'minHr';
-    }
-    if (recovery !== null && todayRow?.spo2 != null && todayRow.spo2 < 94) {
-      recovery = Math.max(0, recovery - 1);
+      recoveryBasis = 'restingHr';
     }
 
     // Movement: 0-3 against an 8k-step day.
@@ -140,25 +116,9 @@ export default async function fitnessRoutes(fastify: FastifyInstance) {
     return reply.send({
       score,
       components: {
-        sleep: {
-          value: sleep,
-          max: 4,
-          minutes: todayRow?.sleepMinutes ?? null,
-          deepMinutes: todayRow?.sleepDeepMinutes ?? null,
-          remMinutes: todayRow?.sleepRemMinutes ?? null,
-        },
-        recovery: {
-          value: recovery,
-          max: 3,
-          basis: recoveryBasis,
-          spo2: todayRow?.spo2 ?? null,
-        },
-        activity: {
-          value: activity,
-          max: 3,
-          steps: todayRow?.steps ?? null,
-          distanceMeters: todayRow?.distanceMeters ?? null,
-        },
+        sleep: { value: sleep, max: 4, minutes: todayRow?.sleepMinutes ?? null },
+        recovery: { value: recovery, max: 3, basis: recoveryBasis },
+        activity: { value: activity, max: 3, steps: todayRow?.steps ?? null },
       },
     });
   });
@@ -183,11 +143,6 @@ export default async function fitnessRoutes(fastify: FastifyInstance) {
       sleepScore: data.sleepScore,
       sleepMinutes: data.sleepMinutes,
       hrvRmssd: data.hrvRmssd,
-      restingHeartRate: data.restingHeartRate,
-      spo2: data.spo2,
-      distanceMeters: data.distanceMeters,
-      sleepDeepMinutes: data.sleepDeepMinutes,
-      sleepRemMinutes: data.sleepRemMinutes,
     }).onConflictDoUpdate({
       target: [healthMetrics.userId, healthMetrics.date],
       set: {
@@ -204,11 +159,6 @@ export default async function fitnessRoutes(fastify: FastifyInstance) {
         sleepScore: data.sleepScore ?? sql`${healthMetrics.sleepScore}`,
         sleepMinutes: data.sleepMinutes ?? sql`${healthMetrics.sleepMinutes}`,
         hrvRmssd: data.hrvRmssd ?? sql`${healthMetrics.hrvRmssd}`,
-        restingHeartRate: data.restingHeartRate ?? sql`${healthMetrics.restingHeartRate}`,
-        spo2: data.spo2 ?? sql`${healthMetrics.spo2}`,
-        distanceMeters: data.distanceMeters ?? sql`${healthMetrics.distanceMeters}`,
-        sleepDeepMinutes: data.sleepDeepMinutes ?? sql`${healthMetrics.sleepDeepMinutes}`,
-        sleepRemMinutes: data.sleepRemMinutes ?? sql`${healthMetrics.sleepRemMinutes}`,
         updatedAt: new Date(),
       },
     }).returning();
@@ -267,6 +217,9 @@ export default async function fitnessRoutes(fastify: FastifyInstance) {
       avgHeartRate: data.avgHeartRate ?? null,
     }).onConflictDoNothing().returning();
 
-    return reply.status(201).send(activity ?? { duplicate: true });
+    if (!activity) return reply.send({ duplicate: true });
+
+    const newlyUnlocked = await AchievementService.evaluate(user.id);
+    return reply.status(201).send({ ...activity, newlyUnlocked });
   });
 }

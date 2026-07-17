@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { QuestService } from '../services/quest.service';
+import { AchievementService } from '../services/achievements.service';
 import { authenticate } from '../middleware/auth';
 
 const idParams = {
@@ -143,7 +144,8 @@ export default async function questRoutes(fastify: FastifyInstance) {
 
     try {
       const completed = await QuestService.completeQuest(user.id, id, fulfillment);
-      return reply.send(completed);
+      const newlyUnlocked = await AchievementService.evaluate(user.id);
+      return reply.send({ ...completed, newlyUnlocked });
     } catch (err: any) {
       return reply.status(404).send({ error: err.message });
     }

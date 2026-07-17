@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_os/core/network/api_client.dart';
+import 'package:life_os/features/achievements/application/achievement_unlock_bus.dart';
 
 /// One workout/activity row (Strava import or manual log).
 class ActivityDto {
@@ -125,13 +126,6 @@ class FitnessRepository {
     int? caloriesBurned,
     int? heartRateMin,
     int? heartRateMax,
-    int? sleepMinutes,
-    int? hrvRmssd,
-    int? restingHeartRate,
-    int? spo2,
-    int? distanceMeters,
-    int? sleepDeepMinutes,
-    int? sleepRemMinutes,
   }) async {
     try {
       await _dio.post('/fitness', data: {
@@ -140,28 +134,10 @@ class FitnessRepository {
         if (caloriesBurned != null) 'caloriesBurned': caloriesBurned,
         if (heartRateMin != null) 'heartRateMin': heartRateMin,
         if (heartRateMax != null) 'heartRateMax': heartRateMax,
-        if (sleepMinutes != null) 'sleepMinutes': sleepMinutes,
-        if (hrvRmssd != null) 'hrvRmssd': hrvRmssd,
-        if (restingHeartRate != null) 'restingHeartRate': restingHeartRate,
-        if (spo2 != null) 'spo2': spo2,
-        if (distanceMeters != null) 'distanceMeters': distanceMeters,
-        if (sleepDeepMinutes != null) 'sleepDeepMinutes': sleepDeepMinutes,
-        if (sleepRemMinutes != null) 'sleepRemMinutes': sleepRemMinutes,
       });
       return true;
     } on DioException {
       return false;
-    }
-  }
-
-  /// Body Energy score (0-10) computed server-side from sleep, recovery and
-  /// movement. Null score = no watch data yet; callers hide the card.
-  Future<BodyEnergyDto?> fetchBodyEnergy() async {
-    try {
-      final response = await _dio.get('/fitness/energy');
-      return BodyEnergyDto.fromJson(response.data as Map<String, dynamic>);
-    } on DioException {
-      return null;
     }
   }
 
@@ -178,7 +154,7 @@ class FitnessRepository {
     int? avgHeartRate,
   }) async {
     try {
-      await _dio.post('/fitness/activity', data: {
+      final response = await _dio.post('/fitness/activity', data: {
         'name': name,
         'startTime': startTime.toIso8601String(),
         'source': source,
@@ -188,44 +164,16 @@ class FitnessRepository {
         if (caloriesBurned != null) 'caloriesBurned': caloriesBurned,
         if (avgHeartRate != null) 'avgHeartRate': avgHeartRate,
       });
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        AchievementUnlockBus.publish(data['newlyUnlocked']);
+      }
       return true;
     } on DioException {
       return false;
     }
   }
 }
-
-/// The one real energy meter: server-computed from last night's sleep,
-/// HRV/resting-HR recovery vs the wearer's own 14-day baseline, and steps.
-class BodyEnergyDto {
-  final int? score; // 0-10, null = no watch data yet
-  final int? sleepMinutes;
-  final String? recoveryBasis; // 'hrv' | 'restingHr' | null
-  final int? steps;
-
-  const BodyEnergyDto({
-    this.score,
-    this.sleepMinutes,
-    this.recoveryBasis,
-    this.steps,
-  });
-
-  factory BodyEnergyDto.fromJson(Map<String, dynamic> json) {
-    final components = (json['components'] as Map?)?.cast<String, dynamic>();
-    Map<String, dynamic>? part(String key) =>
-        (components?[key] as Map?)?.cast<String, dynamic>();
-    return BodyEnergyDto(
-      score: (json['score'] as num?)?.toInt(),
-      sleepMinutes: (part('sleep')?['minutes'] as num?)?.toInt(),
-      recoveryBasis: part('recovery')?['basis'] as String?,
-      steps: (part('activity')?['steps'] as num?)?.toInt(),
-    );
-  }
-}
-
-final bodyEnergyProvider = FutureProvider<BodyEnergyDto?>((ref) {
-  return ref.watch(fitnessRepositoryProvider).fetchBodyEnergy();
-});
 
 final fitnessRepositoryProvider = Provider<FitnessRepository>((ref) {
   return FitnessRepository(ref.watch(dioProvider));

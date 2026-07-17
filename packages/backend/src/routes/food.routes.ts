@@ -4,6 +4,7 @@ import { db } from '../db';
 import { nutritionLogs } from '../db/schema';
 import { eq, and, gte } from 'drizzle-orm';
 import { aiConfigured, analyzeMealPhoto } from '../services/ai.service';
+import { AchievementService } from '../services/achievements.service';
 
 const IMAGE_MEDIA_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 const MAX_IMAGE_BASE64_CHARS = 7_000_000; // ~5 MB binary, the vision API limit
@@ -40,7 +41,8 @@ export default async function foodRoutes(fastify: FastifyInstance) {
       loggedAt: new Date(),
     }).returning();
 
-    return reply.status(201).send(log);
+    const newlyUnlocked = await AchievementService.evaluate(user.id);
+    return reply.status(201).send({ ...log, newlyUnlocked });
   });
 
   // Photo → estimated calories + macros (Claude vision). The client shows

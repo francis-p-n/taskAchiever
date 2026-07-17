@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_os/core/network/api_client.dart';
+import 'package:life_os/features/achievements/application/achievement_unlock_bus.dart';
 
 /// AI estimate for a meal photo, shown in the log-meal form to confirm.
 class MealEstimate {
@@ -98,13 +99,17 @@ class FoodRepository {
     int? fats,
   }) async {
     try {
-      await _dio.post('/food', data: {
+      final response = await _dio.post('/food', data: {
         'mealType': mealType,
         'calories': calories,
         if (protein != null) 'protein': protein,
         if (carbs != null) 'carbs': carbs,
         if (fats != null) 'fats': fats,
       });
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        AchievementUnlockBus.publish(data['newlyUnlocked']);
+      }
       return true;
     } on DioException {
       return false;

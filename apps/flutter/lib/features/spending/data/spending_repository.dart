@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_os/core/network/api_client.dart';
+import 'package:life_os/features/achievements/application/achievement_unlock_bus.dart';
 
 /// One row from GET /spending/recent. Amounts are stored in cents.
 class TransactionDto {
@@ -94,6 +95,7 @@ class SpendingRepository {
         options: Options(receiveTimeout: const Duration(seconds: 60)),
       );
       final data = response.data as Map<String, dynamic>;
+      AchievementUnlockBus.publish(data['newlyUnlocked']);
       return (
         imported: (data['imported'] as num?)?.toInt() ?? 0,
         skipped: (data['skipped'] as num?)?.toInt() ?? 0,
@@ -111,11 +113,15 @@ class SpendingRepository {
     required String merchant,
   }) async {
     try {
-      await _dio.post('/spending', data: {
+      final response = await _dio.post('/spending', data: {
         'amount': amountCents,
         'category': category,
         'merchant': merchant,
       });
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        AchievementUnlockBus.publish(data['newlyUnlocked']);
+      }
       return true;
     } on DioException {
       return false;

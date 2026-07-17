@@ -114,11 +114,6 @@ export const healthMetrics = pgTable('health_metrics', {
   sleepScore: integer('sleep_score'),
   sleepMinutes: integer('sleep_minutes'), // last night's sleep, from Health Connect
   hrvRmssd: integer('hrv_rmssd'), // recovery/stress proxy (higher = calmer)
-  restingHeartRate: integer('resting_heart_rate'),
-  spo2: integer('spo2'), // blood oxygen, average %
-  distanceMeters: integer('distance_meters'),
-  sleepDeepMinutes: integer('sleep_deep_minutes'),
-  sleepRemMinutes: integer('sleep_rem_minutes'),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (t) => ({
   userDateIdx: uniqueIndex('health_metrics_user_date_idx').on(t.userId, t.date),
@@ -169,6 +164,18 @@ export const transactions = pgTable('transactions', {
 }, (t) => ({
   userDateIdx: index('transactions_user_date_idx').on(t.userId, t.transactionDate),
   userExternalIdx: uniqueIndex('transactions_user_external_idx').on(t.userId, t.externalId),
+}));
+
+// Unlock state for the achievement catalog (defined in code, see
+// achievements.service.ts). One row per unlock; the catalog itself is not
+// stored here.
+export const userAchievements = pgTable('user_achievements', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  key: text('key').notNull(),
+  unlockedAt: timestamp('unlocked_at').defaultNow().notNull(),
+}, (t) => ({
+  userKeyIdx: uniqueIndex('user_achievements_user_key_idx').on(t.userId, t.key),
 }));
 
 export const scheduleEvents = pgTable('schedule_events', {

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_os/core/network/api_client.dart';
+import 'package:life_os/features/achievements/application/achievement_unlock_bus.dart';
 import 'package:life_os/features/player/domain/player.dart';
 
 class QuestDto {
@@ -95,7 +96,11 @@ class QuestsRepository {
   /// Marks a quest complete on the server (awards XP/streak in user_stats).
   Future<bool> completeQuest(String id, {int fulfillment = 3}) async {
     try {
-      await _dio.post('/quests/$id/complete', data: {'fulfillment': fulfillment});
+      final response = await _dio.post('/quests/$id/complete', data: {'fulfillment': fulfillment});
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        AchievementUnlockBus.publish(data['newlyUnlocked']);
+      }
       return true;
     } on DioException {
       return false;
