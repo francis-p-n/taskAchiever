@@ -93,7 +93,10 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
         backgroundColor: NotionColors.background,
         body: Row(
           children: [
-            _buildSidebar(context, ref),
+            // The rail's destination count has grown past what fits on
+            // shorter viewports; scrolling keeps every item reachable
+            // instead of silently clipping the bottom ones.
+            SingleChildScrollView(child: _buildSidebar(context, ref)),
             const VerticalDivider(thickness: 1, width: 1),
             Expanded(child: _Atmosphere(child: widget.child)),
           ],
