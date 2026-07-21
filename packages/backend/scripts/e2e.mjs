@@ -206,6 +206,78 @@ async function main() {
     const fit = await api('GET', '/fitness/daily');
     check('fitness log round-trips', fit.data?.steps === 4200 && fit.data?.caloriesBurned === 310, JSON.stringify(fit.data));
 
+    // -- time tracking: entry + ROI + summary --
+    const badTime = await api('POST', '/time', { category: 'nonsense', durationMinutes: 30 });
+    check('time rejects unknown category', badTime.status === 400);
+    const timeEntry = await api('POST', '/time', {
+      category: 'work', durationMinutes: 90, notes: 'E2E deep work',
+      moodBefore: 7, moodAfter: 6, energyBefore: 8, energyAfter: 5,
+    });
+    // ROI heuristic: base 60 + (6-7)*3 + (5-8)*2 = 51
+    check('time entry created with ROI', timeEntry.status === 201 && timeEntry.data?.roiScore === 51, `roi=${timeEntry.data?.roiScore}`);
+    await api('POST', '/time', { category: 'health', durationMinutes: 60 });
+    const timeSummary = await api('GET', '/time/summary?range=7d');
+    check('time summary totals', timeSummary.data?.totalMinutes === 150, JSON.stringify(timeSummary.data));
+    const timeCats = Object.fromEntries((timeSummary.data?.byCategory ?? []).map((c) => [c.category, c.minutes]));
+    check('time summary by category', timeCats['work'] === 90 && timeCats['health'] === 60, JSON.stringify(timeCats));
+    check('time ROI ranking present', Array.isArray(timeSummary.data?.roiRanking) && timeSummary.data.roiRanking.length === 2);
+
+    // -- daily check-ins: morning/evening halves upsert independently --
+    const morning = await api('POST', '/checkins', { morningMood: 8, morningEnergy: 7, morningStress: 3, sleepMinutes: 450 });
+    check('morning check-in saved', morning.status === 201 && morning.data?.morningMood === 8);
+    const evening = await api('POST', '/checkins', { eveningMood: 6, eveningEnergy: 5, eveningStress: 4 });
+    check('evening upsert keeps morning', evening.status === 201 && evening.data?.morningMood === 8 && evening.data?.eveningMood === 6, JSON.stringify(evening.data));
+    const checkins = await api('GET', '/checkins/recent?days=14');
+    check('check-in history + averages', checkins.data?.checkins?.length === 1 && checkins.data?.averages?.mood === 6, JSON.stringify(checkins.data?.averages));
+    const badCheckin = await api('POST', '/checkins', { date: 'not-a-date', morningMood: 5 });
+    check('check-in rejects bad date', badCheckin.status === 400);
+
+    // -- relationships: contact + interaction + engagement --
+    const contact = await api('POST', '/contacts', { name: 'E2E Friend', relationshipType: 'close' });
+    check('contact created', contact.status === 201 && contact.data?.id);
+    check('never-contacted is at risk', contact.data?.atRisk === true && contact.data?.engagementScore === 0);
+    const cid = contact.data?.id;
+    const atRisk0 = await api('GET', '/contacts/at-risk');
+    check('at-risk lists fresh contact', (atRisk0.data ?? []).some((c) => c.id === cid));
+    const interaction = await api('POST', `/contacts/${cid}/interactions`, { interactionType: 'meet', depthScore: 4, notes: 'coffee' });
+    check('interaction logged', interaction.status === 201);
+    const contactsAfter = await api('GET', '/contacts');
+    const friend = (contactsAfter.data ?? []).find((c) => c.id === cid);
+    check('interaction bumps engagement', friend?.atRisk === false && friend?.engagementScore >= 95, `score=${friend?.engagementScore}`);
+    const atRisk1 = await api('GET', '/contacts/at-risk');
+    check('at-risk clears after contact', !(atRisk1.data ?? []).some((c) => c.id === cid));
+    const badInteraction = await api('POST', '/contacts/999999/interactions', { interactionType: 'call' });
+    check('interaction 404 on unknown contact', badInteraction.status === 404);
+
+    // -- habits: streaks, duplicate guard, XP --
+    const habit = await api('POST', '/habits', { name: 'E2E Fasted Run', category: 'fitness', difficulty: 4 });
+    check('habit created', habit.status === 201 && habit.data?.id);
+    const hid = habit.data?.id;
+    const done = await api('POST', `/habits/${hid}/complete`, { notes: 'first' });
+    check('habit completion starts streak', done.status === 201 && done.data?.currentStreakDays === 1, JSON.stringify(done.data));
+    check('habit completion awards XP', done.data?.xpAwarded === 40, `xp=${done.data?.xpAwarded}`);
+    const doneAgain = await api('POST', `/habits/${hid}/complete`);
+    check('same-day completion blocked', doneAgain.status === 409);
+    const habitList = await api('GET', '/habits');
+    const h = (habitList.data ?? []).find((x) => x.id === hid);
+    check('habit list shows completedToday', h?.completedToday === true && h?.currentStreakDays === 1);
+    const statsAfterHabit = await api('GET', '/stats');
+    check('habit XP lands in stats (20 quest + 40 habit)', statsAfterHabit.data?.experiencePoints === 60, `xp=${statsAfterHabit.data?.experiencePoints}`);
+    const archived = await api('DELETE', `/habits/${hid}`);
+    check('habit archives', archived.status === 200 && archived.data?.archived === true);
+    const habitList2 = await api('GET', '/habits');
+    check('archived habit leaves list', !(habitList2.data ?? []).some((x) => x.id === hid));
+
+    // -- unified dashboard + weekly insights --
+    const dash = await api('GET', '/dashboard/daily');
+    check('dashboard aggregates time', dash.data?.time?.totalMinutes === 150, JSON.stringify(dash.data?.time));
+    check('dashboard aggregates spending', dash.data?.spending?.spentTodayCents === 5550);
+    check('dashboard includes check-in', dash.data?.checkin?.morningMood === 8);
+    const insights = await api('GET', '/insights/weekly');
+    check('weekly insights returned', insights.status === 200 && Array.isArray(insights.data?.insights) && insights.data.insights.length >= 1, JSON.stringify(insights.data?.insights));
+    check('weekly insights declare source', insights.data?.source === 'ai' || insights.data?.source === 'fallback');
+    check('weekly insights carry data', insights.data?.spentWeekCents === 5550 && insights.data?.moodAvg === 6);
+
     // -- calendar disconnect removes synced events, keeps manual ones --
     await api('POST', '/schedule', {
       title: 'E2E Manual Event',
