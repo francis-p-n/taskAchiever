@@ -10,6 +10,7 @@ import 'package:life_os/features/schedule/presentation/schedule_screen.dart';
 import 'package:life_os/features/settings/presentation/settings_screen.dart';
 import 'package:life_os/features/status/presentation/status_screen.dart';
 import 'package:life_os/features/achievements/presentation/achievements_screen.dart';
+import 'package:life_os/features/life/presentation/life_screen.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -43,6 +44,10 @@ final goRouter = GoRouter(
         GoRoute(
           path: '/schedule',
           builder: (context, state) => const ScheduleScreen(),
+        ),
+        GoRoute(
+          path: '/life',
+          builder: (context, state) => const LifeScreen(),
         ),
         GoRoute(
           path: '/quests',

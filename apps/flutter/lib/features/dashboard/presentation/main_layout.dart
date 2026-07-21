@@ -194,6 +194,11 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
           label: Text('Schedule'),
         ),
         NavigationRailDestination(
+          icon: Icon(Icons.track_changes_outlined),
+          selectedIcon: Icon(Icons.track_changes),
+          label: Text('Life'),
+        ),
+        NavigationRailDestination(
           icon: Icon(Icons.list_alt_outlined),
           selectedIcon: Icon(Icons.list_alt),
           label: Text('Quests'),
@@ -254,6 +259,11 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
           label: 'Plan',
         ),
         BottomNavigationBarItem(
+          icon: Icon(Icons.track_changes_outlined),
+          activeIcon: Icon(Icons.track_changes),
+          label: 'Life',
+        ),
+        BottomNavigationBarItem(
           icon: Icon(Icons.list_alt_outlined),
           activeIcon: Icon(Icons.list_alt),
           label: 'Quests',
@@ -283,10 +293,11 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
     if (location.startsWith('/food')) return 2;
     if (location.startsWith('/spending')) return 3;
     if (location.startsWith('/schedule')) return 4;
-    if (location.startsWith('/quests')) return 5;
-    if (location.startsWith('/status')) return 6;
-    if (location.startsWith('/achievements')) return 7;
-    if (location.startsWith('/settings')) return 8;
+    if (location.startsWith('/life')) return 5;
+    if (location.startsWith('/quests')) return 6;
+    if (location.startsWith('/status')) return 7;
+    if (location.startsWith('/achievements')) return 8;
+    if (location.startsWith('/settings')) return 9;
     return 0; // Default to Home
   }
 
@@ -308,15 +319,18 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
         context.go('/schedule');
         break;
       case 5:
-        context.go('/quests');
+        context.go('/life');
         break;
       case 6:
-        context.go('/status');
+        context.go('/quests');
         break;
       case 7:
-        context.go('/achievements');
+        context.go('/status');
         break;
       case 8:
+        context.go('/achievements');
+        break;
+      case 9:
         context.go('/settings');
         break;
     }
