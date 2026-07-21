@@ -278,6 +278,47 @@ async function main() {
     check('weekly insights declare source', insights.data?.source === 'ai' || insights.data?.source === 'fallback');
     check('weekly insights carry data', insights.data?.spentWeekCents === 5550 && insights.data?.moodAvg === 6);
 
+    // -- quest-centric tracking: inline tags, bonus XP, full undo revert --
+    const tq = await api('POST', '/quests', { title: 'E2E Tracked Quest', difficulty: 3, category: 'social' });
+    check('tracked quest created', tq.status === 201 && tq.data?.id);
+    const tqid = tq.data?.id;
+    const tqComplete = await api('POST', `/quests/${tqid}/complete`, {
+      fulfillment: 4,
+      tracking: {
+        durationMinutes: 30, timeCategory: 'social',
+        moodBefore: 6, moodAfter: 8,
+        spendingCents: 1500, spendingCategory: 'Food',
+        contactId: cid, interactionType: 'meet',
+      },
+    });
+    check('inline tracking tags all 4 domains', tqComplete.status === 200 && tqComplete.data?.trackingBonusXp === 20, JSON.stringify({ bonus: tqComplete.data?.trackingBonusXp, tagged: tqComplete.data?.tagged }));
+    const statsTagged = await api('GET', '/stats');
+    check('quest + tag XP (60 + 30 + 20)', statsTagged.data?.experiencePoints === 110, `xp=${statsTagged.data?.experiencePoints}`);
+    const timeRecent = await api('GET', '/time/recent');
+    check('tagged time entry linked to quest', (timeRecent.data ?? []).some((e) => e.questId === tqid && e.durationMinutes === 30));
+    const spendTagged = await api('GET', '/spending/summary');
+    check('tagged spending lands in summary', spendTagged.data?.spentTodayCents === 7050, `cents=${spendTagged.data?.spentTodayCents}`);
+    const retag = await api('POST', `/quests/${tqid}/tracking`, { durationMinutes: 10 });
+    check('re-tagging a tagged completion 409s', retag.status === 409);
+
+    const tqUndo = await api('POST', `/quests/${tqid}/uncomplete`);
+    check('tracked quest uncompletes', tqUndo.status === 200);
+    const statsReverted = await api('GET', '/stats');
+    check('undo reverts quest + tag XP (back to 60)', statsReverted.data?.experiencePoints === 60, `xp=${statsReverted.data?.experiencePoints}`);
+    const timeAfterUndo = await api('GET', '/time/recent');
+    check('undo deletes linked time entry', !(timeAfterUndo.data ?? []).some((e) => e.questId === tqid));
+    const spendAfterUndo = await api('GET', '/spending/summary');
+    check('undo deletes linked spending', spendAfterUndo.data?.spentTodayCents === 5550, `cents=${spendAfterUndo.data?.spentTodayCents}`);
+
+    // Late tagging: plain completion first, sheet posts afterwards.
+    const lq = await api('POST', '/quests', { title: 'E2E Late Tag Quest', difficulty: 1 });
+    const lqid = lq.data?.id;
+    const untagged = await api('POST', `/quests/${lqid}/tracking`, { durationMinutes: 15 });
+    check('tagging an uncompleted quest 409s', untagged.status === 409);
+    await api('POST', `/quests/${lqid}/complete`, { fulfillment: 3 });
+    const lateTag = await api('POST', `/quests/${lqid}/tracking`, { durationMinutes: 15 });
+    check('late tag after completion works', lateTag.status === 201 && lateTag.data?.bonusXp === 5, JSON.stringify(lateTag.data));
+
     // -- calendar disconnect removes synced events, keeps manual ones --
     await api('POST', '/schedule', {
       title: 'E2E Manual Event',
