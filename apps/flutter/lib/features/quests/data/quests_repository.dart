@@ -107,6 +107,36 @@ class QuestsRepository {
     }
   }
 
+  /// Attaches opt-in tracking tags to an already-completed quest. Returns
+  /// the server's bonus XP, or null when offline / rejected (already tagged).
+  Future<int?> tagQuest(
+    String id, {
+    int? durationMinutes,
+    String? timeCategory,
+    int? moodAfter,
+    int? energyAfter,
+    int? spendingCents,
+    String? spendingCategory,
+    int? contactId,
+    String? interactionType,
+  }) async {
+    try {
+      final response = await _dio.post('/quests/$id/tracking', data: {
+        'durationMinutes': ?durationMinutes,
+        'timeCategory': ?timeCategory,
+        'moodAfter': ?moodAfter,
+        'energyAfter': ?energyAfter,
+        'spendingCents': ?spendingCents,
+        'spendingCategory': ?spendingCategory,
+        'contactId': ?contactId,
+        'interactionType': ?interactionType,
+      });
+      return (response.data['bonusXp'] as num?)?.toInt();
+    } on DioException {
+      return null;
+    }
+  }
+
   /// Reverts a completion on the server (takes back the XP it awarded).
   Future<bool> uncompleteQuest(String id) async {
     try {

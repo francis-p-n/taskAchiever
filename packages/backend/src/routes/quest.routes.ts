@@ -194,6 +194,62 @@ export default async function questRoutes(fastify: FastifyInstance) {
     }
   });
 
+  // Late tagging: the client completes first (snappy UX), then the optional
+  // tracking sheet posts here. One shot per completion — a quest that already
+  // carries a tag bonus (or is not completed) is rejected.
+  fastify.post('/api/quests/:id/tracking', {
+    schema: {
+      params: idParams,
+      body: {
+        type: 'object',
+        properties: {
+          durationMinutes: { type: 'integer', minimum: 1, maximum: 24 * 60 },
+          timeCategory: { type: 'string', maxLength: 20 },
+          moodBefore: scale,
+          moodAfter: scale,
+          energyBefore: scale,
+          energyAfter: scale,
+          spendingCents: { type: 'integer', minimum: 1 },
+          spendingCategory: { type: 'string', maxLength: 50 },
+          spendingMerchant: { type: 'string', maxLength: 255 },
+          contactId: { type: 'integer', minimum: 1 },
+          interactionType: {
+            type: 'string',
+            enum: ['text', 'call', 'meet', 'gift', 'shared-memory'],
+          },
+        },
+      },
+    },
+  }, async (request, reply) => {
+    const user = request.user as { id: number };
+    const { id } = request.params as { id: string };
+    const tracking = request.body as QuestTrackingInput;
+
+    const quest = await QuestService.getQuestById(user.id, id);
+    if (!quest) {
+      return reply.status(404).send({ error: 'Quest not found' });
+    }
+    if (!quest.completedAt) {
+      return reply.status(409).send({
+        error: 'NOT_COMPLETED',
+        message: 'Tracking tags attach to completed quests only',
+        statusCode: 409,
+      });
+    }
+    if ((quest.trackingBonusXp ?? 0) > 0) {
+      return reply.status(409).send({
+        error: 'ALREADY_TAGGED',
+        message: 'This completion already has tracking tags',
+        statusCode: 409,
+      });
+    }
+
+    const result = await TrackingService.applyQuestTracking(
+      user.id, id, quest.title, tracking
+    );
+    return reply.status(201).send(result);
+  });
+
   fastify.post('/api/quests/:id/uncomplete', { schema: { params: idParams } }, async (request, reply) => {
     const user = request.user as { id: number };
     const { id } = request.params as { id: string };

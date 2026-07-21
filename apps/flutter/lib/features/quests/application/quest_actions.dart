@@ -5,6 +5,7 @@ import 'package:life_os/core/theme.dart';
 import 'package:life_os/features/player/application/player_notifier.dart';
 import 'package:life_os/features/player/domain/player.dart';
 import 'package:life_os/features/quests/application/quests_notifier.dart';
+import 'package:life_os/features/quests/presentation/quest_tracking_sheet.dart';
 
 /// Completes [quest]: updates the quest list, awards XP (with the class
 /// bonus when the quest is in the player's favored area), celebrates a
@@ -20,12 +21,21 @@ void completeQuest(BuildContext context, WidgetRef ref, QuestEntry quest) {
   final result =
       ref.read(playerProvider.notifier).gainXp(earned, area: quest.area);
 
+  // Optional tracking tags (lifeOS v2): server-backed quests get the opt-in
+  // sheet after the celebration; skipping records nothing.
+  void offerTracking() {
+    if (quest.remoteId == null || !context.mounted) return;
+    showQuestTrackingSheet(context, ref,
+        remoteId: quest.remoteId!, title: quest.title);
+  }
+
   if (result.leveledUp) {
     showDialog(
       context: context,
       builder: (_) => LevelUpDialog(newLevel: result.newLevel),
-    );
+    ).then((_) => offerTracking());
   } else {
+    offerTracking();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
