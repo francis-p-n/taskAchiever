@@ -3,37 +3,7 @@ import { authenticate } from '../middleware/auth';
 import { db } from '../db';
 import { timeEntries } from '../db/schema';
 import { eq, desc, and, gte, sql } from 'drizzle-orm';
-
-const CATEGORIES = ['quest', 'work', 'health', 'social', 'rest', 'waste'] as const;
-
-// Baseline value of an hour per category; mood/energy deltas shift it. The
-// score is a 0-100 heuristic, not money — it ranks activities against each
-// other so the dashboard can name time leaks.
-const CATEGORY_BASE_ROI: Record<string, number> = {
-  quest: 70,
-  work: 60,
-  health: 75,
-  social: 65,
-  rest: 50,
-  waste: 10,
-};
-
-function computeRoi(entry: {
-  category: string;
-  moodBefore?: number | null;
-  moodAfter?: number | null;
-  energyBefore?: number | null;
-  energyAfter?: number | null;
-}): number {
-  let score = CATEGORY_BASE_ROI[entry.category] ?? 50;
-  if (entry.moodBefore != null && entry.moodAfter != null) {
-    score += (entry.moodAfter - entry.moodBefore) * 3;
-  }
-  if (entry.energyBefore != null && entry.energyAfter != null) {
-    score += (entry.energyAfter - entry.energyBefore) * 2;
-  }
-  return Math.max(0, Math.min(100, Math.round(score)));
-}
+import { computeRoi, TIME_CATEGORIES as CATEGORIES } from '../services/tracking.service';
 
 export default async function timeRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', authenticate);

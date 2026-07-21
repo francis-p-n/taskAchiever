@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { QuestService } from '../services/quest.service';
 import { AchievementService } from '../services/achievements.service';
+import { TrackingService, QuestTrackingInput } from '../services/tracking.service';
 import { authenticate } from '../middleware/auth';
 
 const idParams = {
@@ -129,23 +130,65 @@ export default async function questRoutes(fastify: FastifyInstance) {
     return reply.send(stats || {});
   });
 
+  const scale = { type: 'integer', minimum: 1, maximum: 10 };
   fastify.post('/api/quests/:id/complete', {
     schema: {
       params: idParams,
       body: {
         type: 'object',
-        properties: { fulfillment: { type: ['integer', 'null'], minimum: 0, maximum: 5 } },
+        properties: {
+          fulfillment: { type: ['integer', 'null'], minimum: 0, maximum: 5 },
+          // Optional opt-in tracking metadata — each tagged domain earns
+          // +5 bonus XP; skipping everything is a plain completion.
+          tracking: {
+            type: 'object',
+            properties: {
+              durationMinutes: { type: 'integer', minimum: 1, maximum: 24 * 60 },
+              timeCategory: { type: 'string', maxLength: 20 },
+              moodBefore: scale,
+              moodAfter: scale,
+              energyBefore: scale,
+              energyAfter: scale,
+              spendingCents: { type: 'integer', minimum: 1 },
+              spendingCategory: { type: 'string', maxLength: 50 },
+              spendingMerchant: { type: 'string', maxLength: 255 },
+              contactId: { type: 'integer', minimum: 1 },
+              interactionType: {
+                type: 'string',
+                enum: ['text', 'call', 'meet', 'gift', 'shared-memory'],
+              },
+            },
+          },
+        },
       },
     },
   }, async (request, reply) => {
     const user = request.user as { id: number };
     const { id } = request.params as { id: string };
-    const { fulfillment } = request.body as { fulfillment: number };
+    const { fulfillment, tracking } = request.body as {
+      fulfillment: number;
+      tracking?: QuestTrackingInput;
+    };
 
     try {
+      // Idempotence guard: a re-completion must not re-apply tracking.
+      const before = await QuestService.getQuestById(user.id, id);
+      const wasCompleted = Boolean(before?.completedAt);
+
       const completed = await QuestService.completeQuest(user.id, id, fulfillment);
+
+      let bonusXp = 0;
+      let tagged: string[] = [];
+      if (tracking && !wasCompleted && before) {
+        const result = await TrackingService.applyQuestTracking(
+          user.id, id, before.title, tracking
+        );
+        bonusXp = result.bonusXp;
+        tagged = result.tagged;
+      }
+
       const newlyUnlocked = await AchievementService.evaluate(user.id);
-      return reply.send({ ...completed, newlyUnlocked });
+      return reply.send({ ...completed, trackingBonusXp: bonusXp, tagged, newlyUnlocked });
     } catch (err: any) {
       return reply.status(404).send({ error: err.message });
     }
@@ -157,6 +200,8 @@ export default async function questRoutes(fastify: FastifyInstance) {
 
     try {
       const quest = await QuestService.uncompleteQuest(user.id, id);
+      // Undo is symmetric: tagged tracking rows and their bonus XP go too.
+      await TrackingService.revertQuestTracking(user.id, id);
       return reply.send(quest);
     } catch (err: any) {
       return reply.status(404).send({ error: err.message });
