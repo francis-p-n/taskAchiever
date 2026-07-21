@@ -110,6 +110,7 @@ fastify.register(require('./routes/achievements.routes').default);
 fastify.register(require('./routes/time.routes').default);
 fastify.register(require('./routes/checkin.routes').default);
 fastify.register(require('./routes/relationships.routes').default);
+fastify.register(require('./routes/habits.routes').default);
 
 // Health check route
 fastify.get('/api/health', async (request, reply) => {
