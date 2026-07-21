@@ -178,6 +178,104 @@ export const userAchievements = pgTable('user_achievements', {
   userKeyIdx: uniqueIndex('user_achievements_user_key_idx').on(t.userId, t.key),
 }));
 
+// 24/7 time tracking (lifeOS v2): one row per logged block of time.
+export const timeEntries = pgTable('time_entries', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  category: text('category').notNull(), // 'quest' | 'work' | 'health' | 'social' | 'rest' | 'waste'
+  startTime: timestamp('start_time').notNull(),
+  durationMinutes: integer('duration_minutes').notNull(),
+  notes: text('notes'),
+  moodBefore: integer('mood_before'), // 1-10
+  energyBefore: integer('energy_before'), // 1-10
+  moodAfter: integer('mood_after'),
+  energyAfter: integer('energy_after'),
+  roiScore: integer('roi_score'), // 0-100, computed server-side
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (t) => ({
+  userStartIdx: index('time_entries_user_start_idx').on(t.userId, t.startTime),
+}));
+
+// Morning/evening wellness check-in; one row per user per calendar day.
+export const dailyCheckins = pgTable('daily_checkins', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  date: timestamp('date').notNull(), // midnight of the local day
+  morningMood: integer('morning_mood'), // 1-10
+  morningEnergy: integer('morning_energy'),
+  morningStress: integer('morning_stress'),
+  sleepMinutes: integer('sleep_minutes'),
+  eveningMood: integer('evening_mood'),
+  eveningEnergy: integer('evening_energy'),
+  eveningStress: integer('evening_stress'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (t) => ({
+  userDateIdx: uniqueIndex('daily_checkins_user_date_idx').on(t.userId, t.date),
+}));
+
+// Relationship tracking: people the user wants to stay intentional about.
+export const contacts = pgTable('contacts', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  name: text('name').notNull(),
+  relationshipType: text('relationship_type').default('friend'), // 'close' | 'friend' | 'acquaintance' | 'professional'
+  birthdate: timestamp('birthdate'),
+  email: text('email'),
+  phone: text('phone'),
+  tags: text('tags'), // JSON array as text
+  notes: text('notes'),
+  lastContactedAt: timestamp('last_contacted_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (t) => ({
+  userIdx: index('contacts_user_idx').on(t.userId),
+}));
+
+export const contactInteractions = pgTable('contact_interactions', {
+  id: serial('id').primaryKey(),
+  contactId: integer('contact_id').references(() => contacts.id, { onDelete: 'cascade' }).notNull(),
+  interactionType: text('interaction_type').notNull(), // 'text' | 'call' | 'meet' | 'gift' | 'shared-memory'
+  occurredAt: timestamp('occurred_at').notNull(),
+  notes: text('notes'),
+  depthScore: integer('depth_score'), // 1-5
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (t) => ({
+  contactIdx: index('contact_interactions_contact_idx').on(t.contactId, t.occurredAt),
+}));
+
+// Atomic habits with streak state kept denormalized on the habit row —
+// completions are the audit log, the streak columns are the fast path.
+export const habits = pgTable('habits', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  name: text('name').notNull(),
+  category: text('category').default('fitness'), // 'fitness' | 'learning' | 'spirituality' | 'social' | 'other'
+  difficulty: integer('difficulty').default(3), // 1-5, scales XP
+  targetFrequency: text('target_frequency').default('daily'), // 'daily' | '3x-weekly' | 'weekly'
+  currentStreakDays: integer('current_streak_days').default(0),
+  longestStreakDays: integer('longest_streak_days').default(0),
+  lastCompletedAt: timestamp('last_completed_at'),
+  freezesRemaining: integer('freezes_remaining').default(2), // refills monthly
+  active: boolean('active').default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (t) => ({
+  userIdx: index('habits_user_idx').on(t.userId),
+}));
+
+export const habitCompletions = pgTable('habit_completions', {
+  id: serial('id').primaryKey(),
+  habitId: integer('habit_id').references(() => habits.id, { onDelete: 'cascade' }).notNull(),
+  completedAt: timestamp('completed_at').notNull(),
+  notes: text('notes'),
+  streakDay: integer('streak_day'), // day N of the streak at completion time
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (t) => ({
+  habitIdx: index('habit_completions_habit_idx').on(t.habitId, t.completedAt),
+}));
+
 export const scheduleEvents = pgTable('schedule_events', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
