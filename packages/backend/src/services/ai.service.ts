@@ -286,3 +286,100 @@ export async function generateSteps(
     return { steps: heuristicSteps(title), source: 'fallback' };
   }
 }
+
+const INSIGHTS_SCHEMA = {
+  type: 'object' as const,
+  properties: {
+    insights: {
+      type: 'array' as const,
+      items: { type: 'string' as const },
+      description: '3 concise, actionable observations about the week',
+    },
+  },
+  required: ['insights'],
+  additionalProperties: false,
+};
+
+/** Rule-based insights when the AI is unconfigured or fails. */
+export function heuristicWeeklyInsights(summary: {
+  timeByCategory: { category: string; minutes: number; avgRoi: number }[];
+  spentWeekCents: number;
+  moodAvg: number | null;
+  activeStreaks: number;
+  atRiskContacts: number;
+}): string[] {
+  const insights: string[] = [];
+
+  const waste = summary.timeByCategory.find((c) => c.category === 'waste');
+  const top = [...summary.timeByCategory].sort((a, b) => b.avgRoi - a.avgRoi)[0];
+  if (waste && waste.minutes >= 120) {
+    insights.push(
+      `You logged ${Math.round(waste.minutes / 60)}h of waste time this week — reclaiming half of it would fund a new habit.`
+    );
+  }
+  if (top) {
+    insights.push(
+      `Your highest-ROI time went to ${top.category} (score ${top.avgRoi}) — protect that block in next week's schedule.`
+    );
+  }
+  if (summary.moodAvg != null) {
+    insights.push(
+      summary.moodAvg >= 7
+        ? `Mood averaged ${summary.moodAvg}/10 — whatever this week looked like, it's working.`
+        : `Mood averaged ${summary.moodAvg}/10 — check sleep and social time, they move it most.`
+    );
+  }
+  if (summary.atRiskContacts > 0) {
+    insights.push(
+      `${summary.atRiskContacts} relationship${summary.atRiskContacts > 1 ? 's are' : ' is'} past the contact window — a short message today keeps them warm.`
+    );
+  }
+  if (summary.activeStreaks > 0) {
+    insights.push(`${summary.activeStreaks} habit streak${summary.activeStreaks > 1 ? 's' : ''} alive — consistency compounds.`);
+  }
+  if (insights.length === 0) {
+    insights.push('Not enough tracked data yet this week — log a few time entries and check-ins to unlock insights.');
+  }
+  return insights.slice(0, 3);
+}
+
+/** Claude-written weekly insights over the aggregated tracking data. */
+export async function generateWeeklyInsights(
+  summary: Parameters<typeof heuristicWeeklyInsights>[0]
+): Promise<{ insights: string[]; source: 'ai' | 'fallback' }> {
+  if (!aiConfigured()) {
+    return { insights: heuristicWeeklyInsights(summary), source: 'fallback' };
+  }
+
+  try {
+    const response = await getClient().messages.create({
+      model: 'claude-opus-4-8',
+      max_tokens: 1024,
+      output_config: { format: { type: 'json_schema', schema: INSIGHTS_SCHEMA } },
+      messages: [
+        {
+          role: 'user',
+          content:
+            'You are the insights engine of a life-tracking app. From this weekly ' +
+            'summary of the user\'s time allocation (minutes + 0-100 ROI score per ' +
+            'category), spending, mood, habit streaks and neglected relationships, ' +
+            'write exactly 3 concise, specific, actionable insights (max 140 chars ' +
+            'each). Cite the numbers. Data: ' +
+            JSON.stringify(summary),
+        },
+      ],
+    });
+
+    if (response.stop_reason === 'refusal' || response.content.length === 0) {
+      return { insights: heuristicWeeklyInsights(summary), source: 'fallback' };
+    }
+    const text = response.content.find((b) => b.type === 'text');
+    const parsed = text ? (JSON.parse(text.text) as { insights: string[] }) : null;
+    if (!parsed?.insights?.length) {
+      return { insights: heuristicWeeklyInsights(summary), source: 'fallback' };
+    }
+    return { insights: parsed.insights.slice(0, 3), source: 'ai' };
+  } catch {
+    return { insights: heuristicWeeklyInsights(summary), source: 'fallback' };
+  }
+}
