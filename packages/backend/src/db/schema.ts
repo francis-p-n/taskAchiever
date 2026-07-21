@@ -23,6 +23,7 @@ export const quests = pgTable('quests', {
   completedAt: timestamp('completed_at'),
   fulfillment: integer('fulfillment'),
   archivedAt: timestamp('archived_at'), // hidden from the active list, kept for history
+  trackingBonusXp: integer('tracking_bonus_xp').default(0), // opt-in tag bonus, reverted on undo
   reminderSentAt: timestamp('reminder_sent_at'), // last due-soon push, avoids repeats
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -161,9 +162,11 @@ export const transactions = pgTable('transactions', {
   merchant: text('merchant'),
   transactionDate: timestamp('transaction_date').notNull(),
   externalId: text('external_id'), // Plaid transaction_id — dedupe key for synced rows
+  questId: text('quest_id'), // set when tagged from a quest completion
 }, (t) => ({
   userDateIdx: index('transactions_user_date_idx').on(t.userId, t.transactionDate),
   userExternalIdx: uniqueIndex('transactions_user_external_idx').on(t.userId, t.externalId),
+  questIdx: index('transactions_quest_idx').on(t.questId),
 }));
 
 // Unlock state for the achievement catalog (defined in code, see
@@ -191,10 +194,12 @@ export const timeEntries = pgTable('time_entries', {
   moodAfter: integer('mood_after'),
   energyAfter: integer('energy_after'),
   roiScore: integer('roi_score'), // 0-100, computed server-side
+  questId: text('quest_id'), // set when tagged from a quest completion
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (t) => ({
   userStartIdx: index('time_entries_user_start_idx').on(t.userId, t.startTime),
+  questIdx: index('time_entries_quest_idx').on(t.questId),
 }));
 
 // Morning/evening wellness check-in; one row per user per calendar day.
@@ -240,9 +245,11 @@ export const contactInteractions = pgTable('contact_interactions', {
   occurredAt: timestamp('occurred_at').notNull(),
   notes: text('notes'),
   depthScore: integer('depth_score'), // 1-5
+  questId: text('quest_id'), // set when tagged from a quest completion
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (t) => ({
   contactIdx: index('contact_interactions_contact_idx').on(t.contactId, t.occurredAt),
+  questIdx: index('contact_interactions_quest_idx').on(t.questId),
 }));
 
 // Atomic habits with streak state kept denormalized on the habit row —
